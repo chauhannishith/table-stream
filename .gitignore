@@ -1,0 +1,14 @@
+node_modules
+dist
+.next
+.turbo
+*.tsbuildinfo
+.env
+.env.local
+!.env.example
+coverage
+.DS_Store
+*.sqlite
+*.sqlite-journal
+/data
+/var
