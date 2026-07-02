@@ -1,0 +1,17 @@
+org_id: org_demo
+location_id: loc_demo
+hub_id: hub_demo_001
+location_name: Demo Restaurant
+timezone: Asia/Kolkata
+
+control_plane:
+  url: http://cloud-dashboard:3000
+
+cloud_sync_enabled: false
+
+lan:
+  bind: 0.0.0.0
+  port: 8443
+  mdns_name: tablestream-hub
+
+data_dir: /var/lib/tablestream
