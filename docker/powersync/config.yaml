@@ -1,0 +1,31 @@
+# PowerSync service config — maps Postgres WAL to edge/client SQLite buckets.
+# See packages/shared-types/src/sync/powersync.ts for bucket rules.
+#
+# Docs: https://docs.powersync.com/self-hosting/installation
+
+replication:
+  connections:
+    - type: postgresql
+      uri: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      publication: powersync
+
+storage:
+  type: postgresql
+  uri: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+
+port: 8080
+
+client_auth:
+  # MVP: disable JWT verification in local Docker; replace in production.
+  disable: true
+
+sync_rules:
+  content: |
+    bucket_definitions:
+      global:
+        data:
+          - SELECT * FROM organizations
+          - SELECT * FROM locations
+          - SELECT * FROM org_business_profiles
+          - SELECT * FROM subscriptions
+          - SELECT * FROM hub_entitlements
