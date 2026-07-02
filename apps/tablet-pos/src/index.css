@@ -1,0 +1,27 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #0f1419;
+  color: #e7ecf3;
+}
+
+.shell {
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.muted {
+  color: #8b98a8;
+}
+
+.card {
+  background: #1a2332;
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-top: 1rem;
+}
