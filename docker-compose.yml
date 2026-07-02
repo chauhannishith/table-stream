@@ -1,0 +1,110 @@
+name: table-stream
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    command: postgres -c wal_level=logical -c max_replication_slots=10 -c max_wal_senders=10
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tablestream}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tablestream_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-tablestream_cloud}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tablestream} -d ${POSTGRES_DB:-tablestream_cloud}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  edge-server:
+    build:
+      context: .
+      dockerfile: apps/edge-server/Dockerfile
+    ports:
+      - "8443:8443"
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      HUB_CONFIG_PATH: ${HUB_CONFIG_PATH:-/app/apps/edge-server/hub.config.yaml}
+      SUBSCRIPTION_STATUS: ${SUBSCRIPTION_STATUS:-ACTIVE}
+      SUBSCRIPTION_PERIOD_END: ${SUBSCRIPTION_PERIOD_END:-2026-12-31T00:00:00Z}
+      HUB_ENTITLED: ${HUB_ENTITLED:-true}
+      ORG_LEGAL_NAME: ${ORG_LEGAL_NAME:-}
+      ORG_GST_NUMBER: ${ORG_GST_NUMBER:-}
+      ORG_PHONE: ${ORG_PHONE:-}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://tablestream:tablestream_dev@postgres:5432/tablestream_cloud}
+    volumes:
+      - hub_data:/var/lib/tablestream
+      - ./apps/edge-server/hub.config.yaml:/app/apps/edge-server/hub.config.yaml:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  cloud-dashboard:
+    build:
+      context: .
+      dockerfile: apps/cloud-dashboard/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://tablestream:tablestream_dev@postgres:5432/tablestream_cloud}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  tablet-pos:
+    build:
+      context: .
+      dockerfile: apps/tablet-pos/Dockerfile
+      args:
+        VITE_EDGE_API_URL: ${VITE_EDGE_API_URL:-http://localhost:8443}
+    ports:
+      - "5173:80"
+
+  kitchen-display:
+    build:
+      context: .
+      dockerfile: apps/kitchen-display/Dockerfile
+      args:
+        VITE_EDGE_WS_URL: ${VITE_EDGE_WS_URL:-ws://localhost:8443/v1/stream}
+    ports:
+      - "5174:80"
+    depends_on:
+      - edge-server
+
+  powersync:
+    image: journeyapps/powersync-service:latest
+    ports:
+      - "8080:8080"
+    environment:
+      POWERSYNC_CONFIG_PATH: /config/config.yaml
+      POSTGRES_USER: ${POSTGRES_USER:-tablestream}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tablestream_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-tablestream_cloud}
+    volumes:
+      - ./docker/powersync/config.yaml:/config/config.yaml:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
+  hub_data:
