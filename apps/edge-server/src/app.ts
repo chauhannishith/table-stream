@@ -3,12 +3,12 @@ import cors from '@fastify/cors'
 import websocket from '@fastify/websocket'
 import type { HubConfig } from './config.js'
 import type { HubDb } from './db/client.js'
-import type Redis from 'ioredis'
+import type { RedisClient } from './redis/client.js'
 
 export type AppDeps = {
   config: HubConfig
   db: HubDb
-  redis: Redis
+  redis: RedisClient
 }
 
 export async function buildApp(deps: AppDeps) {
@@ -41,7 +41,7 @@ export async function buildApp(deps: AppDeps) {
 
   app.get('/v1/stream', { websocket: true }, (socket) => {
     socket.send(JSON.stringify({ type: 'connected', hub_id: deps.config.hub_id }))
-    socket.on('message', (raw) => {
+    socket.on('message', (raw: Buffer | ArrayBuffer | Buffer[]) => {
       socket.send(JSON.stringify({ type: 'ack', received: raw.toString() }))
     })
   })
@@ -53,6 +53,6 @@ declare module 'fastify' {
   interface FastifyInstance {
     hubConfig: HubConfig
     hubDb: HubDb
-    redis: Redis
+    redis: RedisClient
   }
 }

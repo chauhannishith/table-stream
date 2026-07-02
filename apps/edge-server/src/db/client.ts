@@ -3,7 +3,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { hubSchema } from '@table-stream/shared-types/hub'
 import { mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import type { HubConfig } from './config.js'
+import type { HubConfig } from '../config.js'
 
 export function createHubDb(config: HubConfig) {
   mkdirSync(config.data_dir, { recursive: true })

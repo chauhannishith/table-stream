@@ -23,6 +23,11 @@ main {
   box-shadow: 0 1px 3px rgb(0 0 0 / 8%);
 }
 
+.card-warn {
+  border: 1px solid #d97706;
+  background: #fff7ed;
+}
+
 .muted {
   color: #5c6b7a;
 }

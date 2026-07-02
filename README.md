@@ -45,6 +45,7 @@ table-stream/
    |------------------|------------------------------|
    | Edge hub API     | http://localhost:8443/health |
    | Cloud dashboard  | http://localhost:3000        |
+   | Cloud health     | http://localhost:3000/api/health |
    | Tablet POS       | http://localhost:5173        |
    | Kitchen display  | http://localhost:5174        |
    | PowerSync        | http://localhost:8080        |
