@@ -38,6 +38,12 @@ services:
       dockerfile: apps/edge-server/Dockerfile
     ports:
       - "8443:8443"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:8443/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     environment:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       HUB_CONFIG_PATH: ${HUB_CONFIG_PATH:-/app/apps/edge-server/hub.config.yaml}
@@ -65,6 +71,12 @@ services:
       - "3000:3000"
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://tablestream:tablestream_dev@postgres:5432/tablestream_cloud}
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     depends_on:
       postgres:
         condition: service_healthy
@@ -75,8 +87,6 @@ services:
       dockerfile: apps/tablet-pos/Dockerfile
       args:
         VITE_EDGE_API_URL: ${VITE_EDGE_API_URL:-http://localhost:8443}
-    ports:
-      - "5173:80"
 
   kitchen-display:
     build:
@@ -84,8 +94,6 @@ services:
       dockerfile: apps/kitchen-display/Dockerfile
       args:
         VITE_EDGE_WS_URL: ${VITE_EDGE_WS_URL:-ws://localhost:8443/v1/stream}
-    ports:
-      - "5174:80"
     depends_on:
       - edge-server
 

@@ -1,0 +1,11 @@
+# Production port mappings for nginx-served frontends.
+# Used by: make up
+
+services:
+  tablet-pos:
+    ports:
+      - "5173:80"
+
+  kitchen-display:
+    ports:
+      - "5174:80"

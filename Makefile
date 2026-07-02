@@ -1,5 +1,6 @@
 COMPOSE := docker compose
 COMPOSE_DEV := $(COMPOSE) -f docker-compose.yml -f docker-compose.dev.yml
+COMPOSE_PROD := $(COMPOSE) -f docker-compose.yml -f docker-compose.prod.yml
 ENV_FILE := .env
 
 .PHONY: help env dev dev-sync up down logs ps infra clean
@@ -28,7 +29,7 @@ dev-sync: env
 	$(COMPOSE_DEV) --profile sync up --build
 
 up: env
-	$(COMPOSE) up --build
+	$(COMPOSE_PROD) up --build
 
 down:
 	$(COMPOSE) down
