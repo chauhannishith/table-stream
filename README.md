@@ -84,6 +84,8 @@ Hub migrations: `apps/edge-server/src/db/migrations/0001_initial.sql`
 
 Cloud DDL: `docker/postgres/init.sql` (applied on first Postgres boot)
 
+Edge server implementation phases: [`docs/EDGE-SERVER-ROADMAP.md`](docs/EDGE-SERVER-ROADMAP.md)
+
 ## Local development (without Docker)
 
 ```bash
