@@ -1,0 +1,48 @@
+# Development overrides — hot reload via mounted source + pnpm dev
+# Usage: pnpm docker:dev  (or docker compose -f docker-compose.yml -f docker-compose.dev.yml up)
+
+services:
+  edge-server:
+    build:
+      target: deps
+    command: sh -c "pnpm --filter @table-stream/edge-server db:migrate && pnpm --filter @table-stream/edge-server dev"
+    volumes:
+      - ./packages:/app/packages
+      - ./apps/edge-server:/app/apps/edge-server
+      - hub_data:/var/lib/tablestream
+    environment:
+      NODE_ENV: development
+
+  cloud-dashboard:
+    build:
+      target: deps
+    command: sh -c "pnpm --filter @table-stream/shared-types build && pnpm --filter @table-stream/cloud-dashboard dev"
+    volumes:
+      - ./packages:/app/packages
+      - ./apps/cloud-dashboard:/app/apps/cloud-dashboard
+
+  tablet-pos:
+    build:
+      target: deps
+    command: sh -c "pnpm --filter @table-stream/shared-types build && pnpm --filter @table-stream/shared-utils build && pnpm --filter @table-stream/tablet-pos dev --host 0.0.0.0 --port 5173"
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./packages:/app/packages
+      - ./apps/tablet-pos:/app/apps/tablet-pos
+
+  kitchen-display:
+    build:
+      target: deps
+    command: sh -c "pnpm --filter @table-stream/shared-types build && pnpm --filter @table-stream/kitchen-display dev --host 0.0.0.0 --port 5174"
+    ports:
+      - "5174:5174"
+    volumes:
+      - ./packages:/app/packages
+      - ./apps/kitchen-display:/app/apps/kitchen-display
+    environment:
+      VITE_EDGE_WS_URL: ws://localhost:8443/v1/stream
+
+  powersync:
+    profiles:
+      - sync
