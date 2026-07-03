@@ -35,7 +35,6 @@ export type BillTotals = {
 export function computeBillTotals(input: BillInput): BillTotals {
   let subtotalCents = 0
   const taxBreakdown: Record<string, number> = {}
-  let taxCents = 0
 
   for (const line of input.lines) {
     const entered = line.enteredUnitPriceCents + (line.modifierExtraCents ?? 0)
@@ -46,7 +45,6 @@ export function computeBillTotals(input: BillInput): BillTotals {
       input.taxComponents,
     )
     subtotalCents += split.preTaxCents
-    taxCents += split.taxCents
     for (const [k, v] of Object.entries(split.components)) {
       taxBreakdown[k] = (taxBreakdown[k] ?? 0) + v
     }

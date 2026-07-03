@@ -102,6 +102,7 @@ docker compose up postgres redis
 
 | Script           | Description                    |
 |------------------|--------------------------------|
+| `make check`     | Typecheck + lint + test (local) |
 | `pnpm build`     | Turborepo build all packages   |
 | `pnpm dev`       | Turborepo dev (all apps)       |
 | `pnpm typecheck` | Strict TypeScript check        |

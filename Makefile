@@ -3,11 +3,12 @@ COMPOSE_DEV := $(COMPOSE) -f docker-compose.yml -f docker-compose.dev.yml
 COMPOSE_PROD := $(COMPOSE) -f docker-compose.yml -f docker-compose.prod.yml
 ENV_FILE := .env
 
-.PHONY: help env dev dev-sync up down logs ps infra clean
+.PHONY: help env check dev dev-sync up down logs ps infra clean
 
 help:
 	@echo "Table Stream — Docker targets"
 	@echo ""
+	@echo "  make check     Typecheck, lint, and test (local, no Docker)"
 	@echo "  make env       Copy .env.example → .env if missing"
 	@echo "  make dev       Start dev stack (hot reload)"
 	@echo "  make dev-sync  Dev stack + PowerSync profile"
@@ -21,6 +22,11 @@ help:
 env:
 	@test -f $(ENV_FILE) || cp .env.example $(ENV_FILE)
 	@echo "Using $(ENV_FILE)"
+
+check:
+	pnpm typecheck
+	pnpm lint
+	pnpm test
 
 dev: env
 	$(COMPOSE_DEV) up --build
