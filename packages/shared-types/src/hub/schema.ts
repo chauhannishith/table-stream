@@ -163,16 +163,94 @@ export const kdsStations = sqliteTable('kds_stations', {
     .default(sql`(datetime('now'))`),
 })
 
-export const menuItems = sqliteTable('menu_items', {
+export const menuCategories = sqliteTable('menu_categories', {
   id: text('id').primaryKey(),
   locationId: text('location_id')
     .notNull()
     .references(() => locations.id),
   name: text('name').notNull(),
-  category: text('category').notNull().default('General'),
+  sortOrder: integer('sort_order').notNull().default(0),
+  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  updatedAt: text('updated_at')
+    .notNull()
+    .default(sql`(datetime('now'))`),
+})
+
+export const menuTags = sqliteTable('menu_tags', {
+  id: text('id').primaryKey(),
+  locationId: text('location_id')
+    .notNull()
+    .references(() => locations.id),
+  code: text('code').notNull(),
+  label: text('label').notNull(),
+  sortOrder: integer('sort_order').notNull().default(0),
+  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  updatedAt: text('updated_at')
+    .notNull()
+    .default(sql`(datetime('now'))`),
+})
+
+export const menuItemTags = sqliteTable(
+  'menu_item_tags',
+  {
+    menuItemId: text('menu_item_id')
+      .notNull()
+      .references(() => menuItems.id),
+    tagId: text('tag_id')
+      .notNull()
+      .references(() => menuTags.id),
+  },
+  (t) => [primaryKey({ columns: [t.menuItemId, t.tagId] })],
+)
+
+export const modifierGroups = sqliteTable('modifier_groups', {
+  id: text('id').primaryKey(),
+  locationId: text('location_id')
+    .notNull()
+    .references(() => locations.id),
+  scope: text('scope').notNull(),
+  categoryId: text('category_id').references(() => menuCategories.id),
+  menuItemId: text('menu_item_id').references(() => menuItems.id),
+  name: text('name').notNull(),
+  minSelect: integer('min_select').notNull().default(0),
+  maxSelect: integer('max_select'),
+  isRequired: integer('is_required', { mode: 'boolean' })
+    .notNull()
+    .default(false),
+  sortOrder: integer('sort_order').notNull().default(0),
+  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  updatedAt: text('updated_at')
+    .notNull()
+    .default(sql`(datetime('now'))`),
+})
+
+export const modifierOptions = sqliteTable('modifier_options', {
+  id: text('id').primaryKey(),
+  groupId: text('group_id')
+    .notNull()
+    .references(() => modifierGroups.id),
+  code: text('code').notNull(),
+  label: text('label').notNull(),
+  priceCents: integer('price_cents').notNull().default(0),
+  isDefault: integer('is_default', { mode: 'boolean' }).notNull().default(false),
+  sortOrder: integer('sort_order').notNull().default(0),
+  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  updatedAt: text('updated_at')
+    .notNull()
+    .default(sql`(datetime('now'))`),
+})
+
+export const menuItems = sqliteTable('menu_items', {
+  id: text('id').primaryKey(),
+  locationId: text('location_id')
+    .notNull()
+    .references(() => locations.id),
+  categoryId: text('category_id')
+    .notNull()
+    .references(() => menuCategories.id),
+  name: text('name').notNull(),
   basePriceCents: integer('base_price_cents').notNull(),
   kdsStationId: text('kds_station_id').references(() => kdsStations.id),
-  modifierGroupsJson: text('modifier_groups_json').notNull().default('[]'),
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
   updatedAt: text('updated_at')
     .notNull()
@@ -239,6 +317,7 @@ export const orderLines = sqliteTable('order_lines', {
   taxCents: integer('tax_cents').notNull().default(0),
   lineTotalCents: integer('line_total_cents').notNull(),
   modifiersJson: text('modifiers_json').notNull().default('[]'),
+  tagsJson: text('tags_json').notNull().default('[]'),
   specialInstructions: text('special_instructions'),
   kdsStationId: text('kds_station_id').references(() => kdsStations.id),
   status: text('status').notNull().default('DRAFT'),
@@ -377,7 +456,12 @@ export const hubSchema = {
   zones,
   tables,
   kdsStations,
+  menuCategories,
+  menuTags,
   menuItems,
+  menuItemTags,
+  modifierGroups,
+  modifierOptions,
   menuItemZonePrices,
   orders,
   orderLines,

@@ -445,13 +445,14 @@ Local cache of cloud-managed business details. Refreshed on hub startup, periodi
 |---|---|---|
 | `id` | TEXT PK | |
 | `location_id` | TEXT FK | |
+| `category_id` | TEXT FK | → `menu_categories` |
 | `name` | TEXT | |
-| `category` | TEXT | |
 | `base_price_cents` | INT | entered per `price_tax_mode` — see §5.14 |
 | `kds_station_id` | TEXT | routing |
-| `modifier_groups_json` | JSON | available add/remove toppings |
 | `is_active` | BOOL | |
 | `updated_at` | TIMESTAMPTZ | |
+
+See **menu catalog** tables (`menu_categories`, `menu_tags`, `modifier_groups`, `modifier_options`) in the same section for tags and customization.
 
 #### `menu_item_zone_prices` (setup — per-zone menu pricing)
 
@@ -464,7 +465,138 @@ Local cache of cloud-managed business details. Refreshed on hub startup, periodi
 
 **PK:** `(menu_item_id, zone_id)`
 
-**Pricing rule:** at order time, resolve entered price from `menu_item_zone_prices` or `base_price_cents`, then derive pre-tax, tax, and line total per `price_tax_mode` (§5.14). Snapshot all three onto `order_lines` — never recalculate retroactively.
+**Pricing rule:** at order time, resolve entered price from `menu_item_zone_prices` or `base_price_cents`, then derive pre-tax, tax, and line total per `price_tax_mode` (§5.14). Snapshot all three onto `order_lines` — **never recalculate retroactively** when catalog prices change later.
+
+#### `menu_categories`
+
+Admin-defined groupings (e.g. Pizza, Burgers, Beverages). Items belong to exactly one category.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | TEXT PK | |
+| `location_id` | TEXT FK | |
+| `name` | TEXT | display name — admin editable |
+| `sort_order` | INT | POS menu ordering |
+| `is_active` | BOOL | hidden when false |
+| `updated_at` | TIMESTAMPTZ | |
+
+**Category modifiers:** customization groups with `scope = CATEGORY` attach here (see `modifier_groups`). Example: all Pizzas offer *Thin crust*, *Cheese burst*, *Vegan base*.
+
+#### `menu_tags`
+
+Location-wide tag library — **not a fixed enum**. Admin creates/edits freely.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | TEXT PK | |
+| `location_id` | TEXT FK | |
+| `code` | TEXT | stable slug, e.g. `vegan`, `very_spicy` |
+| `label` | TEXT | display, e.g. "Very spicy" |
+| `sort_order` | INT | |
+| `is_active` | BOOL | |
+
+**Examples (illustrative only):** vegan, fish, chicken, eggs, spicy, very_spicy, gluten_free, nuts.
+
+**Unique:** `(location_id, code)`
+
+#### `menu_item_tags`
+
+Many-to-many: which tags apply to which menu item.
+
+| Column | Type | Notes |
+|---|---|---|
+| `menu_item_id` | TEXT FK | |
+| `tag_id` | TEXT FK | |
+
+**PK:** `(menu_item_id, tag_id)`
+
+Tags are informational (filtering, KDS badges, allergen hints) — they do **not** change price unless modeled as a priced modifier option.
+
+#### `modifier_groups`
+
+Configurable customization sets at **category** or **item** scope. Managed in admin console; synced to floor devices with the menu catalog.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | TEXT PK | |
+| `location_id` | TEXT FK | |
+| `scope` | TEXT | `CATEGORY` \| `ITEM` |
+| `category_id` | TEXT FK nullable | required when `scope = CATEGORY` |
+| `menu_item_id` | TEXT FK nullable | required when `scope = ITEM` |
+| `name` | TEXT | e.g. "Crust", "Extra toppings" |
+| `min_select` | INT | minimum options guest must pick |
+| `max_select` | INT nullable | null = unlimited |
+| `is_required` | BOOL | |
+| `sort_order` | INT | |
+| `is_active` | BOOL | |
+
+**Examples:**
+- Category *Pizza* → group "Crust" with options *Thin*, *Cheese burst* (may be $0 or priced)
+- Item *Margherita* → group "Extra toppings" with *Jalapeño*, *Chilli*, *Potato* each with `price_cents`
+
+At order time the waiter UI merges **category groups** + **item groups** for the selected menu item.
+
+#### `modifier_options`
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | TEXT PK | |
+| `group_id` | TEXT FK | |
+| `code` | TEXT | stable slug |
+| `label` | TEXT | |
+| `price_cents` | INT | additive cost; 0 = free option |
+| `is_default` | BOOL | pre-selected in UI when applicable |
+| `sort_order` | INT | |
+| `is_active` | BOOL | |
+
+**Unique:** `(group_id, code)`
+
+#### Catalog → order snapshot rules (immutable pricing)
+
+When a line is added to an order, the hub **copies** catalog state onto `order_lines`. Later admin edits to menu prices, modifier option prices, tags, or labels affect **only future lines**.
+
+| Snapshotted field | Source at line-add time |
+|---|---|
+| `name` | `menu_items.name` |
+| `unit_price_cents` | zone price matrix or `base_price_cents` |
+| `tax_cents`, `line_total_cents` | computed once from billing config + modifiers |
+| `modifiers_json` | array of `OrderLineModifierSnapshot` — each selected option's `group_id`, `option_id`, `label`, **`price_cents`** |
+| `tags_json` | array of `{ tag_id, code, label }` from item tags at that moment |
+
+```json
+{
+  "modifiers_json": [
+    {
+      "kind": "category_option",
+      "group_id": "grp_crust",
+      "group_name": "Crust",
+      "option_id": "opt_thin",
+      "code": "thin_crust",
+      "label": "Thin crust",
+      "price_cents": 0
+    },
+    {
+      "kind": "item_option",
+      "group_id": "grp_extras",
+      "group_name": "Extra toppings",
+      "option_id": "opt_jalapeno",
+      "code": "jalapeno",
+      "label": "Jalapeño",
+      "price_cents": 150
+    }
+  ],
+  "tags_json": [
+    { "tag_id": "tag_vegan", "code": "vegan", "label": "Vegan" }
+  ]
+}
+```
+
+**Hard rules:**
+1. Never recompute `order_lines` or `invoices` when catalog rows change — only new orders pick up new prices.
+2. Reprints and cloud sync events use the **stored snapshot**, not live catalog lookups.
+3. Void/recall flows create new lines; they do not mutate historical snapshots.
+
+**Sync:** catalog tables (`menu_*`, `modifier_*`) publish to floor clients via hub API / optional cloud sync (`catalog.updated` event). Order lines carry their own snapshots upstream.
 
 #### `orders`
 
@@ -505,7 +637,8 @@ Local cache of cloud-managed business details. Refreshed on hub startup, periodi
 | `unit_price_cents` | INT | pre-tax unit price snapshot |
 | `tax_cents` | INT | tax per line (or per unit × qty) |
 | `line_total_cents` | INT | unit pre-tax + tax × qty (incl. modifier prices) |
-| `modifiers_json` | JSON | `[{ "type": "add" \| "remove", "code", "label", "price_cents" }]` |
+| `modifiers_json` | JSON | `[OrderLineModifierSnapshot]` — see catalog snapshot rules above |
+| `tags_json` | JSON | `[{ tag_id, code, label }]` — item tags at line-add time |
 | `special_instructions` | TEXT | |
 | `kds_station_id` | TEXT | routing |
 | `status` | TEXT | `DRAFT` \| `QUEUED` \| `IN_PROGRESS` \| `PREPARED` \| `SERVED` \| `VOID` \| `RECALLED` |
@@ -1340,6 +1473,27 @@ Routes to printer(s) with `role = COLLECTION`. Restaurant chooses whether dine-i
 
 - [ ] DUPLICATE watermark on reprints
 - [ ] Printer driver: ESC/POS vs IPP
+
+### 5.17 Menu catalog administration (counter / admin console)
+
+The **counter admin console** (hub UI — future route on counter/tablet) manages the full menu catalog per location. Nothing is hard-coded; all examples below are illustrative.
+
+| Admin action | Tables affected |
+|---|---|
+| Create/rename/reorder categories | `menu_categories` |
+| Create/edit tags (vegan, spicy, …) | `menu_tags` |
+| Assign tags to items | `menu_item_tags` |
+| Add category-wide modifier groups (pizza crust options) | `modifier_groups` (`scope = CATEGORY`) |
+| Add item-specific extras (jalapeño +₹15) | `modifier_groups` (`scope = ITEM`) + `modifier_options` |
+| Set base & zone prices | `menu_items`, `menu_item_zone_prices` |
+
+**Waiter / POS flow:**
+1. Pick category → item (tags shown as badges).
+2. UI presents merged modifier groups: category defaults + item-specific groups.
+3. On confirm, hub writes `order_lines` with full price + modifier + tag snapshots.
+4. Kitchen receives submitted lines including modifier labels and tags.
+
+**Price change policy:** editing `base_price_cents`, `menu_item_zone_prices.price_cents`, or `modifier_options.price_cents` takes effect on the **next** line added. Open draft lines may be refreshed only while still `DRAFT` and not yet submitted — once submitted or billed, snapshots are frozen.
 
 ### 5.16 Post-MVP backlog
 

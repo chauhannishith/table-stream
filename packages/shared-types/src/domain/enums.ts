@@ -104,3 +104,7 @@ export type PrintStage = z.infer<typeof PrintStage>
 
 export const OutboxStatus = z.enum(['PENDING', 'IN_FLIGHT', 'ACKED', 'DEAD'])
 export type OutboxStatus = z.infer<typeof OutboxStatus>
+
+/** Modifier groups attach to a menu category or an individual menu item */
+export const ModifierGroupScope = z.enum(['CATEGORY', 'ITEM'])
+export type ModifierGroupScope = z.infer<typeof ModifierGroupScope>
