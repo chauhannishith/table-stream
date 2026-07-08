@@ -4,6 +4,7 @@ import { hubSchema } from '@table-stream/shared-types/hub'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import type { HubConfig } from '../config.js'
+import { applyMigrationsToSqlite } from './migrate.js'
 
 type SqliteDatabase = InstanceType<typeof Database>
 
@@ -17,6 +18,7 @@ export function createHubDb(config: HubConfig) {
   mkdirSync(config.data_dir, { recursive: true })
   const dbPath = join(config.data_dir, 'hub.sqlite')
   const sqlite = new Database(dbPath)
+  applyMigrationsToSqlite(sqlite)
   return createHubDbFromSqlite(sqlite)
 }
 
