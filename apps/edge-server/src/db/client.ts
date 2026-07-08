@@ -5,7 +5,9 @@ import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import type { HubConfig } from '../config.js'
 
-export function createHubDbFromSqlite(sqlite: Database) {
+type SqliteDatabase = InstanceType<typeof Database>
+
+export function createHubDbFromSqlite(sqlite: SqliteDatabase) {
   sqlite.pragma('journal_mode = WAL')
   sqlite.pragma('foreign_keys = ON')
   return drizzle(sqlite, { schema: hubSchema })

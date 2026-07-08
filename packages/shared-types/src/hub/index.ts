@@ -1,2 +1,6 @@
-export { hubSchema } from './schema.js'
+export {
+  hubSchema,
+  organizations,
+  locations,
+} from './schema.js'
 export type { HubSchema } from './schema.js'

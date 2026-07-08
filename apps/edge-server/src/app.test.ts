@@ -52,7 +52,7 @@ describe('edge-server routes', () => {
     await app.close()
   })
 
-  it('GET /v1/status reflects subscription env', async () => {
+  it('GET /v1/status reflects seeded identity and schema version', async () => {
     const app = await createTestApp()
 
     const res = await app.inject({ method: 'GET', url: '/v1/status' })
@@ -61,6 +61,9 @@ describe('edge-server routes', () => {
     const body = res.json()
     expect(body.hub_status).toBe('ACTIVE')
     expect(body.cloud_sync_enabled).toBe(false)
+    expect(body.location_name).toBe('Test Location')
+    expect(body.db_ready).toBe(true)
+    expect(body.schema_version).toBe('0002_menu_catalog.sql')
 
     await app.close()
   })
