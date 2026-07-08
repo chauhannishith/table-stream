@@ -1748,6 +1748,8 @@ table-stream/
 
 ## 7. Phased Implementation Roadmap
 
+> **Edge hub API:** see [`EDGE-SERVER-ROADMAP.md`](./EDGE-SERVER-ROADMAP.md) for phased `apps/edge-server` steps (small PRs, tests required, health checks).
+
 ### Phase 0 — Foundations
 
 - [x] Hub DB: **SQLite**
