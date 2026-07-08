@@ -3,7 +3,11 @@ import cors from '@fastify/cors'
 import websocket from '@fastify/websocket'
 import type { HubConfig } from './config.js'
 import type { HubDb } from './db/client.js'
+import { AppError, toProblemJson, toUnknownProblemJson } from './lib/errors.js'
 import type { RedisClient } from './redis/client.js'
+import { healthRoutes } from './routes/health.js'
+import { statusRoutes } from './routes/status.js'
+import { streamRoutes } from './routes/stream.js'
 
 export type AppDeps = {
   config: HubConfig
@@ -13,7 +17,7 @@ export type AppDeps = {
 
 export async function buildApp(deps: AppDeps) {
   const app = Fastify({
-    logger: true,
+    logger: process.env.NODE_ENV !== 'test',
   })
 
   await app.register(cors, { origin: true })
@@ -23,28 +27,26 @@ export async function buildApp(deps: AppDeps) {
   app.decorate('hubDb', deps.db)
   app.decorate('redis', deps.redis)
 
-  app.get('/health', async () => ({
-    status: 'ok',
-    hub_id: deps.config.hub_id,
-    location_id: deps.config.location_id,
-    org_id: deps.config.org_id,
-  }))
-
-  app.get('/v1/status', async () => {
-    const entitled = process.env.HUB_ENTITLED !== 'false'
-    return {
-      hub_status: entitled ? 'ACTIVE' : 'SUSPENDED',
-      cloud_sync_enabled: deps.config.cloud_sync_enabled,
-      subscription_status: process.env.SUBSCRIPTION_STATUS ?? 'ACTIVE',
-    }
-  })
-
-  app.get('/v1/stream', { websocket: true }, (socket) => {
-    socket.send(JSON.stringify({ type: 'connected', hub_id: deps.config.hub_id }))
-    socket.on('message', (raw: Buffer | ArrayBuffer | Buffer[]) => {
-      socket.send(JSON.stringify({ type: 'ack', received: raw.toString() }))
+  app.setErrorHandler((error, request, reply) => {
+    const problem = toUnknownProblemJson(error)
+    return reply.status(problem.statusCode).send({
+      error: problem.error,
     })
   })
+
+  app.setNotFoundHandler((request, reply) => {
+    const problem = toProblemJson(
+      new AppError('NOT_FOUND', 'Route not found', 404, {
+        method: request.method,
+        url: request.url,
+      }),
+    )
+    return reply.status(404).send(problem)
+  })
+
+  await app.register(healthRoutes)
+  await app.register(statusRoutes, { prefix: '/v1' })
+  await app.register(streamRoutes, { prefix: '/v1' })
 
   return app
 }
