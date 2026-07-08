@@ -18,11 +18,7 @@ function migrationsDir() {
   return dir
 }
 
-export function migrate() {
-  const config = loadHubConfig()
-  const dbPath = join(config.data_dir, 'hub.sqlite')
-  const sqlite = new Database(dbPath)
-
+export function applyMigrationsToSqlite(sqlite: Database) {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       id TEXT PRIMARY KEY,
@@ -48,7 +44,13 @@ export function migrate() {
     sqlite.prepare('INSERT INTO schema_migrations (id) VALUES (?)').run(file)
     console.log(`Applied migration ${file}`)
   }
+}
 
+export function migrate() {
+  const config = loadHubConfig()
+  const dbPath = join(config.data_dir, 'hub.sqlite')
+  const sqlite = new Database(dbPath)
+  applyMigrationsToSqlite(sqlite)
   console.log(`Hub SQLite ready at ${dbPath}`)
 }
 
