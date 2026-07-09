@@ -18,7 +18,9 @@ function migrationsDir() {
   return dir
 }
 
-export function applyMigrationsToSqlite(sqlite: Database) {
+type SqliteDatabase = InstanceType<typeof Database>
+
+export function applyMigrationsToSqlite(sqlite: SqliteDatabase) {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       id TEXT PRIMARY KEY,
@@ -27,10 +29,11 @@ export function applyMigrationsToSqlite(sqlite: Database) {
   `)
 
   const applied = new Set(
-    sqlite
-      .prepare('SELECT id FROM schema_migrations')
-      .all()
-      .map((row) => (row as { id: string }).id),
+    (
+      sqlite.prepare('SELECT id FROM schema_migrations').all() as Array<{
+        id: string
+      }>
+    ).map((row) => row.id),
   )
 
   const files = readdirSync(migrationsDir())

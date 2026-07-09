@@ -1,10 +1,10 @@
 import Database from 'better-sqlite3'
 import type { HubConfig } from '../config.js'
 import { buildApp, type AppDeps } from '../app.js'
-import { createHubDbFromSqlite } from '../db/client.js'
+import { createHubDbFromSqlite, type HubDb } from '../db/client.js'
 import { applyMigrationsToSqlite } from '../db/migrate.js'
-import type { HubDb } from '../db/client.js'
 import type { RedisClient } from '../redis/client.js'
+import { seedHubFromConfig } from '../services/hub-seed.js'
 
 export const testHubConfig: HubConfig = {
   org_id: 'org_test',
@@ -36,14 +36,22 @@ export function createTestRedis(): RedisClient {
 }
 
 export async function createTestApp(overrides: Partial<AppDeps> = {}) {
+  const config = overrides.config ?? testHubConfig
+  const db = overrides.db ?? createTestHubDb()
+  if (!overrides.db) {
+    seedHubFromConfig(db, config)
+  }
+
   return buildApp({
-    config: testHubConfig,
-    db: createTestHubDb(),
-    redis: createTestRedis(),
-    ...overrides,
+    config,
+    db,
+    redis: overrides.redis ?? createTestRedis(),
   })
 }
 
-export function seedMinimalLocation(_db: HubDb) {
-  // Reserved for E1 hub seed — no-op in E0
+export function seedMinimalLocation(
+  db: HubDb,
+  config: HubConfig = testHubConfig,
+) {
+  seedHubFromConfig(db, config)
 }

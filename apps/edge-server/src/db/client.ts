@@ -4,8 +4,11 @@ import { hubSchema } from '@table-stream/shared-types/hub'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import type { HubConfig } from '../config.js'
+import { applyMigrationsToSqlite } from './migrate.js'
 
-export function createHubDbFromSqlite(sqlite: Database) {
+type SqliteDatabase = InstanceType<typeof Database>
+
+export function createHubDbFromSqlite(sqlite: SqliteDatabase) {
   sqlite.pragma('journal_mode = WAL')
   sqlite.pragma('foreign_keys = ON')
   return drizzle(sqlite, { schema: hubSchema })
@@ -15,6 +18,7 @@ export function createHubDb(config: HubConfig) {
   mkdirSync(config.data_dir, { recursive: true })
   const dbPath = join(config.data_dir, 'hub.sqlite')
   const sqlite = new Database(dbPath)
+  applyMigrationsToSqlite(sqlite)
   return createHubDbFromSqlite(sqlite)
 }
 
