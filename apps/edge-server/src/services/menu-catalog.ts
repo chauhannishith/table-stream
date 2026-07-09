@@ -20,6 +20,7 @@ import {
   upsertMenuItemZonePrices,
   type ZonePriceInput,
 } from '../repositories/menu-item-zone-prices.js'
+import { getZoneById } from '../repositories/zones.js'
 import {
   createMenuTag,
   listMenuTags,
@@ -156,6 +157,14 @@ export function setMenuItemZonePrices(
     throw new AppError('NOT_FOUND', 'Menu item not found', 404, {
       menu_item_id: menuItemId,
     })
+  }
+
+  for (const price of prices) {
+    if (!getZoneById(db, locationId, price.zoneId)) {
+      throw new AppError('NOT_FOUND', 'Zone not found', 404, {
+        zone_id: price.zoneId,
+      })
+    }
   }
 
   const rows = upsertMenuItemZonePrices(db, menuItemId, prices)

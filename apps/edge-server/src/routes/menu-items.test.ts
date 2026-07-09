@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createTestApp } from '../test/fixtures.js'
 import { createCategory } from '../services/menu-catalog.js'
 import { createZone } from '../repositories/zones.js'
+import { upsertLocation } from '../repositories/locations.js'
 
 describe('menu items routes', () => {
   it('GET /v1/menu/items resolves zone price with base fallback', async () => {
@@ -108,6 +109,44 @@ describe('menu items routes', () => {
       method: 'PATCH',
       url: `/v1/menu/items/${item.id}`,
       payload: { category_id: 'cat_missing' },
+    })
+
+    expect(res.statusCode).toBe(404)
+    expect(res.json().error.code).toBe('NOT_FOUND')
+
+    await app.close()
+  })
+
+  it('PUT /v1/menu/items/:id/zone-prices rejects zones from another location', async () => {
+    const app = await createTestApp()
+    const locationId = app.hubConfig.location_id
+    const category = createCategory(app.hubDb, locationId, { name: 'Mains' })
+
+    upsertLocation(app.hubDb, {
+      id: 'loc_other',
+      orgId: app.hubConfig.org_id,
+      name: 'Other Location',
+      timezone: 'UTC',
+      hubId: 'hub_other',
+      cloudSyncEnabled: false,
+    })
+    const otherZoneId = createZone(app.hubDb, 'loc_other', { name: 'Other Patio' })
+
+    const createRes = await app.inject({
+      method: 'POST',
+      url: '/v1/menu/items',
+      payload: {
+        category_id: category.id,
+        name: 'Burger',
+        base_price_cents: 500,
+      },
+    })
+    const item = createRes.json().item
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/v1/menu/items/${item.id}/zone-prices`,
+      payload: { prices: [{ zone_id: otherZoneId, price_cents: 650 }] },
     })
 
     expect(res.statusCode).toBe(404)

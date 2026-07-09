@@ -1,6 +1,21 @@
+import { and, eq } from 'drizzle-orm'
 import { zones } from '@table-stream/shared-types/hub'
 import type { HubDb } from '../db/client.js'
 import { newId } from '../lib/ids.js'
+
+export type ZoneRow = typeof zones.$inferSelect
+
+export function getZoneById(
+  db: HubDb,
+  locationId: string,
+  id: string,
+): ZoneRow | undefined {
+  return db
+    .select()
+    .from(zones)
+    .where(and(eq(zones.id, id), eq(zones.locationId, locationId)))
+    .get()
+}
 
 export function createZone(
   db: HubDb,
