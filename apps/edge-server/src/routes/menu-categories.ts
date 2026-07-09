@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { AppError } from '../lib/errors.js'
+import { pickDefined } from '../lib/pick-defined.js'
 import {
   createCategory,
   listCategories,
@@ -31,8 +32,10 @@ export const menuCategoryRoutes: FastifyPluginAsync = async (app) => {
 
     const category = createCategory(app.hubDb, app.hubConfig.location_id, {
       name: body.name.trim(),
-      sortOrder: body.sort_order,
-      isActive: body.is_active,
+      ...pickDefined({
+        sortOrder: body.sort_order,
+        isActive: body.is_active,
+      }),
     })
 
     return reply.status(201).send({ category })
@@ -50,11 +53,11 @@ export const menuCategoryRoutes: FastifyPluginAsync = async (app) => {
       app.hubDb,
       app.hubConfig.location_id,
       id,
-      {
+      pickDefined({
         name: body?.name?.trim(),
         sortOrder: body?.sort_order,
         isActive: body?.is_active,
-      },
+      }),
     )
 
     if (!category) {
