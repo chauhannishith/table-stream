@@ -1,5 +1,10 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { listCategories } from '../services/menu-catalog.js'
+import { AppError } from '../lib/errors.js'
+import {
+  createCategory,
+  listCategories,
+  updateCategory,
+} from '../services/menu-catalog.js'
 
 export const menuCategoryRoutes: FastifyPluginAsync = async (app) => {
   app.get('/categories', async (request) => {
@@ -11,5 +16,51 @@ export const menuCategoryRoutes: FastifyPluginAsync = async (app) => {
         includeInactive,
       }),
     }
+  })
+
+  app.post('/categories', async (request, reply) => {
+    const body = request.body as {
+      name?: string
+      sort_order?: number
+      is_active?: boolean
+    }
+
+    if (!body?.name?.trim()) {
+      throw new AppError('VALIDATION_ERROR', 'name is required', 400)
+    }
+
+    const category = createCategory(app.hubDb, app.hubConfig.location_id, {
+      name: body.name.trim(),
+      sortOrder: body.sort_order,
+      isActive: body.is_active,
+    })
+
+    return reply.status(201).send({ category })
+  })
+
+  app.patch('/categories/:id', async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const body = request.body as {
+      name?: string
+      sort_order?: number
+      is_active?: boolean
+    }
+
+    const category = updateCategory(
+      app.hubDb,
+      app.hubConfig.location_id,
+      id,
+      {
+        name: body?.name?.trim(),
+        sortOrder: body?.sort_order,
+        isActive: body?.is_active,
+      },
+    )
+
+    if (!category) {
+      throw new AppError('NOT_FOUND', 'Category not found', 404, { id })
+    }
+
+    return reply.send({ category })
   })
 }
