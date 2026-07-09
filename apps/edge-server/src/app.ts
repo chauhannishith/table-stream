@@ -8,6 +8,10 @@ import type { RedisClient } from './redis/client.js'
 import { healthRoutes } from './routes/health.js'
 import { statusRoutes } from './routes/status.js'
 import { streamRoutes } from './routes/stream.js'
+import { menuCategoryRoutes } from './routes/menu-categories.js'
+import { menuTagRoutes } from './routes/menu-tags.js'
+import { menuItemRoutes } from './routes/menu-items.js'
+import { menuModifierRoutes } from './routes/menu-modifiers.js'
 
 export type AppDeps = {
   config: HubConfig
@@ -47,6 +51,10 @@ export async function buildApp(deps: AppDeps) {
   await app.register(healthRoutes)
   await app.register(statusRoutes, { prefix: '/v1' })
   await app.register(streamRoutes, { prefix: '/v1' })
+  await app.register(menuCategoryRoutes, { prefix: '/v1/menu' })
+  await app.register(menuTagRoutes, { prefix: '/v1/menu' })
+  await app.register(menuItemRoutes, { prefix: '/v1/menu' })
+  await app.register(menuModifierRoutes, { prefix: '/v1/menu' })
 
   return app
 }
