@@ -68,6 +68,54 @@ describe('menu items routes', () => {
     await app.close()
   })
 
+  it('POST /v1/menu/items returns 404 for unknown category', async () => {
+    const app = await createTestApp()
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/v1/menu/items',
+      payload: {
+        category_id: 'cat_missing',
+        name: 'Burger',
+        base_price_cents: 500,
+      },
+    })
+
+    expect(res.statusCode).toBe(404)
+    expect(res.json().error.code).toBe('NOT_FOUND')
+
+    await app.close()
+  })
+
+  it('PATCH /v1/menu/items/:id returns 404 for unknown category', async () => {
+    const app = await createTestApp()
+    const category = createCategory(app.hubDb, app.hubConfig.location_id, {
+      name: 'Mains',
+    })
+
+    const createRes = await app.inject({
+      method: 'POST',
+      url: '/v1/menu/items',
+      payload: {
+        category_id: category.id,
+        name: 'Burger',
+        base_price_cents: 500,
+      },
+    })
+    const item = createRes.json().item
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/v1/menu/items/${item.id}`,
+      payload: { category_id: 'cat_missing' },
+    })
+
+    expect(res.statusCode).toBe(404)
+    expect(res.json().error.code).toBe('NOT_FOUND')
+
+    await app.close()
+  })
+
   it('PUT /v1/menu/items/:id/zone-prices works for inactive items', async () => {
     const app = await createTestApp()
     const locationId = app.hubConfig.location_id

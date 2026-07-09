@@ -4,6 +4,7 @@ import {
   menuItems,
 } from '@table-stream/shared-types/hub'
 import type { HubDb } from '../db/client.js'
+import { AppError } from '../lib/errors.js'
 import { newId } from '../lib/ids.js'
 import { nowSqliteTimestamp } from '../lib/timestamps.js'
 import { getMenuCategoryById } from './menu-categories.js'
@@ -56,7 +57,9 @@ export function createMenuItem(
 ): MenuItemRow {
   const category = getMenuCategoryById(db, locationId, input.categoryId)
   if (!category) {
-    throw new Error(`Category not found: ${input.categoryId}`)
+    throw new AppError('NOT_FOUND', 'Category not found', 404, {
+      category_id: input.categoryId,
+    })
   }
 
   const id = newId('item')
@@ -104,7 +107,9 @@ export function updateMenuItem(
   if (input.categoryId !== undefined) {
     const category = getMenuCategoryById(db, locationId, input.categoryId)
     if (!category) {
-      throw new Error(`Category not found: ${input.categoryId}`)
+      throw new AppError('NOT_FOUND', 'Category not found', 404, {
+        category_id: input.categoryId,
+      })
     }
   }
 
