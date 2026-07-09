@@ -67,4 +67,41 @@ describe('menu items routes', () => {
     expect(res.json().item.tag_ids).toEqual([tagId])
     await app.close()
   })
+
+  it('PUT /v1/menu/items/:id/zone-prices works for inactive items', async () => {
+    const app = await createTestApp()
+    const locationId = app.hubConfig.location_id
+    const category = createCategory(app.hubDb, locationId, { name: 'Mains' })
+
+    const createRes = await app.inject({
+      method: 'POST',
+      url: '/v1/menu/items',
+      payload: {
+        category_id: category.id,
+        name: 'Old Special',
+        base_price_cents: 300,
+      },
+    })
+    const item = createRes.json().item
+    const zoneId = createZone(app.hubDb, locationId, { name: 'Bar' })
+
+    await app.inject({
+      method: 'PATCH',
+      url: `/v1/menu/items/${item.id}`,
+      payload: { is_active: false },
+    })
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/v1/menu/items/${item.id}/zone-prices`,
+      payload: { prices: [{ zone_id: zoneId, price_cents: 350 }] },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json().prices).toEqual([
+      expect.objectContaining({ zone_id: zoneId, price_cents: 350 }),
+    ])
+
+    await app.close()
+  })
 })

@@ -9,6 +9,7 @@ import {
 } from '../repositories/menu-categories.js'
 import {
   createMenuItem,
+  getMenuItemById,
   getMenuItemTagIds,
   listMenuItems,
   updateMenuItem,
@@ -150,7 +151,7 @@ export function setMenuItemZonePrices(
   menuItemId: string,
   prices: ZonePriceInput[],
 ) {
-  const item = listMenuItems(db, locationId).find((row) => row.id === menuItemId)
+  const item = getMenuItemById(db, locationId, menuItemId)
   if (!item) {
     throw new AppError('NOT_FOUND', 'Menu item not found', 404, {
       menu_item_id: menuItemId,
