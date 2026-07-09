@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { AppError } from '../lib/errors.js'
 import { pickDefined } from '../lib/pick-defined.js'
+import { trimOptionalNonEmpty } from '../lib/validate-patch.js'
 import {
   createMenuItemEntry,
   listMenuForZone,
@@ -77,7 +78,7 @@ export const menuItemRoutes: FastifyPluginAsync = async (app) => {
       id,
       pickDefined({
         categoryId: body?.category_id,
-        name: body?.name?.trim(),
+        name: trimOptionalNonEmpty('name', body?.name),
         basePriceCents: body?.base_price_cents,
         kdsStationId: body?.kds_station_id,
         isActive: body?.is_active,

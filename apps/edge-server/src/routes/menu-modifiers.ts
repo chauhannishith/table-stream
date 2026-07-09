@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { AppError } from '../lib/errors.js'
 import { pickDefined } from '../lib/pick-defined.js'
+import { trimOptionalNonEmpty } from '../lib/validate-patch.js'
 import {
   createModifierGroupEntry,
   createModifierOptionEntry,
@@ -85,7 +86,7 @@ export const menuModifierRoutes: FastifyPluginAsync = async (app) => {
       app.hubConfig.location_id,
       id,
       pickDefined({
-        name: body?.name?.trim(),
+        name: trimOptionalNonEmpty('name', body?.name),
         minSelect: body?.min_select,
         maxSelect: body?.max_select,
         isRequired: body?.is_required,
@@ -165,8 +166,8 @@ export const menuModifierRoutes: FastifyPluginAsync = async (app) => {
       app.hubConfig.location_id,
       id,
       pickDefined({
-        code: body?.code?.trim(),
-        label: body?.label?.trim(),
+        code: trimOptionalNonEmpty('code', body?.code),
+        label: trimOptionalNonEmpty('label', body?.label),
         priceCents: body?.price_cents,
         isDefault: body?.is_default,
         sortOrder: body?.sort_order,

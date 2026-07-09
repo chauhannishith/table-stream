@@ -90,4 +90,22 @@ describe('PATCH /v1/menu/categories/:id', () => {
 
     await app.close()
   })
+
+  it('rejects whitespace-only name updates', async () => {
+    const app = await createTestApp()
+    const created = createCategory(app.hubDb, app.hubConfig.location_id, {
+      name: 'Keep Me',
+    })
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/v1/menu/categories/${created.id}`,
+      payload: { name: '   ' },
+    })
+
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error.message).toBe('name must not be empty')
+
+    await app.close()
+  })
 })

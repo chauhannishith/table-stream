@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { AppError } from '../lib/errors.js'
 import { pickDefined } from '../lib/pick-defined.js'
+import { trimOptionalNonEmpty } from '../lib/validate-patch.js'
 import {
   createCategory,
   listCategories,
@@ -54,7 +55,7 @@ export const menuCategoryRoutes: FastifyPluginAsync = async (app) => {
       app.hubConfig.location_id,
       id,
       pickDefined({
-        name: body?.name?.trim(),
+        name: trimOptionalNonEmpty('name', body?.name),
         sortOrder: body?.sort_order,
         isActive: body?.is_active,
       }),
