@@ -1,7 +1,8 @@
-import { and, asc, eq } from 'drizzle-orm'
+import { and, asc, eq, max } from 'drizzle-orm'
 import { orderLines } from '@table-stream/shared-types/hub'
 import type { HubDb } from '../db/client.js'
 import { newId } from '../lib/ids.js'
+import { nowSqliteTimestamp } from '../lib/timestamps.js'
 
 export type OrderLineRow = typeof orderLines.$inferSelect
 
@@ -10,6 +11,20 @@ export function listOrderLines(db: HubDb, orderId: string): OrderLineRow[] {
     .select()
     .from(orderLines)
     .where(eq(orderLines.orderId, orderId))
+    .orderBy(asc(orderLines.id))
+    .all()
+}
+
+export function listDraftOrderLines(
+  db: HubDb,
+  orderId: string,
+): OrderLineRow[] {
+  return db
+    .select()
+    .from(orderLines)
+    .where(
+      and(eq(orderLines.orderId, orderId), eq(orderLines.isSubmitted, false)),
+    )
     .orderBy(asc(orderLines.id))
     .all()
 }
@@ -24,6 +39,13 @@ export function getOrderLineById(
     .from(orderLines)
     .where(and(eq(orderLines.id, id), eq(orderLines.orderId, orderId)))
     .get()
+}
+
+export function getOrderLineByIdGlobal(
+  db: HubDb,
+  id: string,
+): OrderLineRow | undefined {
+  return db.select().from(orderLines).where(eq(orderLines.id, id)).get()
 }
 
 export type CreateOrderLineInput = {
@@ -79,6 +101,11 @@ export type UpdateOrderLineInput = {
   modifiersJson?: string
   tagsJson?: string
   specialInstructions?: string | null
+  status?: string
+  isSubmitted?: boolean
+  submittedAt?: string | null
+  submitBatch?: number
+  kdsVisible?: boolean
 }
 
 export function updateOrderLine(
@@ -108,6 +135,11 @@ export function updateOrderLine(
   if (input.specialInstructions !== undefined) {
     patch.specialInstructions = input.specialInstructions
   }
+  if (input.status !== undefined) patch.status = input.status
+  if (input.isSubmitted !== undefined) patch.isSubmitted = input.isSubmitted
+  if (input.submittedAt !== undefined) patch.submittedAt = input.submittedAt
+  if (input.submitBatch !== undefined) patch.submitBatch = input.submitBatch
+  if (input.kdsVisible !== undefined) patch.kdsVisible = input.kdsVisible
 
   db.update(orderLines)
     .set(patch)
@@ -115,6 +147,59 @@ export function updateOrderLine(
     .run()
 
   return getOrderLineById(db, orderId, id) ?? null
+}
+
+export function nextSubmitBatch(db: HubDb, orderId: string): number {
+  const row = db
+    .select({ value: max(orderLines.submitBatch) })
+    .from(orderLines)
+    .where(eq(orderLines.orderId, orderId))
+    .get()
+
+  return (row?.value ?? 0) + 1
+}
+
+export function submitDraftLines(
+  db: HubDb,
+  orderId: string,
+  lineIds: string[],
+  submitBatch: number,
+): OrderLineRow[] {
+  const submittedAt = nowSqliteTimestamp()
+  const result: OrderLineRow[] = []
+
+  for (const id of lineIds) {
+    const row = updateOrderLine(db, orderId, id, {
+      isSubmitted: true,
+      status: 'QUEUED',
+      submittedAt,
+      submitBatch,
+      kdsVisible: true,
+    })
+    if (row) result.push(row)
+  }
+
+  return result
+}
+
+export function listKdsQueueLines(
+  db: HubDb,
+  options: { stationId?: string } = {},
+): OrderLineRow[] {
+  const conditions = [
+    eq(orderLines.isSubmitted, true),
+    eq(orderLines.kdsVisible, true),
+  ]
+  if (options.stationId) {
+    conditions.push(eq(orderLines.kdsStationId, options.stationId))
+  }
+
+  return db
+    .select()
+    .from(orderLines)
+    .where(and(...conditions))
+    .orderBy(asc(orderLines.submittedAt), asc(orderLines.id))
+    .all()
 }
 
 export function deleteOrderLine(
