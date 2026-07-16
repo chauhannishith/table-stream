@@ -20,7 +20,7 @@ describe('menu items routes', () => {
       },
     })
     const item = createRes.json().item
-    const zoneId = createZone(app.hubDb, locationId, { name: 'Patio' })
+    const zoneId = createZone(app.hubDb, locationId, { name: 'Patio' }).id
 
     await app.inject({
       method: 'PUT',
@@ -130,7 +130,7 @@ describe('menu items routes', () => {
       hubId: 'hub_other',
       cloudSyncEnabled: false,
     })
-    const otherZoneId = createZone(app.hubDb, 'loc_other', { name: 'Other Patio' })
+    const otherZoneId = createZone(app.hubDb, 'loc_other', { name: 'Other Patio' }).id
 
     const createRes = await app.inject({
       method: 'POST',
@@ -170,7 +170,7 @@ describe('menu items routes', () => {
       },
     })
     const item = createRes.json().item
-    const zoneId = createZone(app.hubDb, locationId, { name: 'Bar' })
+    const zoneId = createZone(app.hubDb, locationId, { name: 'Bar' }).id
 
     await app.inject({
       method: 'PATCH',

@@ -12,6 +12,11 @@ import { menuCategoryRoutes } from './routes/menu-categories.js'
 import { menuTagRoutes } from './routes/menu-tags.js'
 import { menuItemRoutes } from './routes/menu-items.js'
 import { menuModifierRoutes } from './routes/menu-modifiers.js'
+import { zoneRoutes } from './routes/zones.js'
+import { tableRoutes } from './routes/tables.js'
+import { staffRoutes } from './routes/staff.js'
+import { locationBillingRoutes } from './routes/location-billing.js'
+import { kdsStationRoutes } from './routes/kds-stations.js'
 
 export type AppDeps = {
   config: HubConfig
@@ -55,6 +60,11 @@ export async function buildApp(deps: AppDeps) {
   await app.register(menuTagRoutes, { prefix: '/v1/menu' })
   await app.register(menuItemRoutes, { prefix: '/v1/menu' })
   await app.register(menuModifierRoutes, { prefix: '/v1/menu' })
+  await app.register(zoneRoutes, { prefix: '/v1' })
+  await app.register(tableRoutes, { prefix: '/v1' })
+  await app.register(staffRoutes, { prefix: '/v1' })
+  await app.register(locationBillingRoutes, { prefix: '/v1' })
+  await app.register(kdsStationRoutes, { prefix: '/v1' })
 
   return app
 }

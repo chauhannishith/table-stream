@@ -37,7 +37,7 @@ describe('resolveUnitPriceCents', () => {
       name: 'Burger',
       basePriceCents: 500,
     })
-    const zoneId = createZone(db, locationId, { name: 'Patio' })
+    const zoneId = createZone(db, locationId, { name: 'Patio' }).id
     upsertMenuItemZonePrices(db, item.id, [{ zoneId, priceCents: 650 }])
 
     expect(resolveUnitPriceCents(db, item.id, zoneId)).toBe(650)
