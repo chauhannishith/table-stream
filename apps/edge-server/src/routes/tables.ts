@@ -14,9 +14,11 @@ export const tableRoutes: FastifyPluginAsync = async (app) => {
     const query = request.query as { zone_id?: string }
 
     return {
-      tables: listTablesForLocation(app.hubDb, app.hubConfig.location_id, {
-        zoneId: query.zone_id,
-      }),
+      tables: listTablesForLocation(
+        app.hubDb,
+        app.hubConfig.location_id,
+        pickDefined({ zoneId: query.zone_id }),
+      ),
     }
   })
 
