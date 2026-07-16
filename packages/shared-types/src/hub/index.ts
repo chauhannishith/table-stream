@@ -14,5 +14,7 @@ export {
   modifierOptions,
   menuItemZonePrices,
   zones,
+  orders,
+  orderLines,
 } from './schema.js'
 export type { HubSchema } from './schema.js'
