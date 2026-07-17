@@ -2,6 +2,7 @@ import { and, eq } from 'drizzle-orm'
 import { tokenCounters } from '@table-stream/shared-types/hub'
 import type { HubDb } from '../db/client.js'
 
+/** Allocate the next hub-local invoice number (INV-00001, …) for a location. */
 export function nextInvoiceNumber(db: HubDb, locationId: string): string {
   const counterKey = 'invoice'
   const existing = db
