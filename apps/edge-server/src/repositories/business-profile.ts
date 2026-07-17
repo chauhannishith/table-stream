@@ -13,6 +13,7 @@ export type BusinessProfileSnapshot = {
   logo_path: string | null
 }
 
+/** Load business header from hub cache, falling back to subscription env defaults. */
 export function getBusinessProfileSnapshot(
   db: HubDb,
   orgId: string,

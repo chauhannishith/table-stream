@@ -182,6 +182,10 @@ function toInvoiceDto(row: InvoiceRow) {
   }
 }
 
+/**
+ * Issue a local invoice for a paid order with frozen line/tax/tender snapshots.
+ * @throws {AppError} FORBIDDEN when hub is SUSPENDED; NOT_FOUND; CONFLICT; VALIDATION_ERROR
+ */
 export function issueOrderInvoice(
   db: HubDb,
   config: HubConfig,
@@ -296,6 +300,7 @@ export function issueOrderInvoice(
   return { invoice: toInvoiceDto(row) }
 }
 
+/** Read invoice snapshot for reprint; allowed when hub is SUSPENDED. */
 export function getInvoiceEntry(
   db: HubDb,
   locationId: string,

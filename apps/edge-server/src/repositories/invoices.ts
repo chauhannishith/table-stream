@@ -30,6 +30,7 @@ export type CreateInvoiceInput = {
   status?: InvoiceStatus
 }
 
+/** Fetch an invoice scoped to a location. */
 export function getInvoiceById(
   db: HubDb,
   locationId: string,
@@ -42,6 +43,7 @@ export function getInvoiceById(
     .get()
 }
 
+/** Return the primary ISSUED invoice for an order, if any. */
 export function getIssuedInvoiceByOrderId(
   db: HubDb,
   locationId: string,
@@ -60,6 +62,7 @@ export function getIssuedInvoiceByOrderId(
     .get()
 }
 
+/** Insert an immutable invoice row (append-only; corrections use void/credit-note). */
 export function createInvoice(db: HubDb, input: CreateInvoiceInput): InvoiceRow {
   db.insert(invoices)
     .values({
