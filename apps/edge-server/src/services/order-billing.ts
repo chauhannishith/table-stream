@@ -45,6 +45,11 @@ function toBillPreviewDto(totals: ReturnType<typeof computeBillPreview>): BillPr
   }
 }
 
+/**
+ * Preview bill totals for an open order from snapshotted lines and location billing config.
+ * Request overrides apply to discount/tip; service charge comes from location rules.
+ * @throws {AppError} NOT_FOUND when the order is missing; CONFLICT when PAID or VOID
+ */
 export function previewOrderBill(
   db: HubDb,
   locationId: string,

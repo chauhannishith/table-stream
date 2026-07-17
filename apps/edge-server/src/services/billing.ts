@@ -20,6 +20,7 @@ export type BillPreviewOptions = {
   tipCents?: number
 }
 
+/** Extract numeric tax component rates from location billing JSON rules. */
 export function parseTaxComponents(
   taxRules: Record<string, unknown>,
 ): TaxComponentRates {
@@ -32,6 +33,7 @@ export function parseTaxComponents(
   return components
 }
 
+/** Returns service charge percent when enabled in location rules; otherwise undefined. */
 export function parseServiceChargePercent(
   rules: Record<string, unknown>,
 ): number | undefined {
@@ -41,6 +43,7 @@ export function parseServiceChargePercent(
   return undefined
 }
 
+/** Load price/tax mode and component rates for a location (defaults to exclusive, no tax). */
 export function loadBillingConfigSnapshot(
   db: HubDb,
   locationId: string,
@@ -58,6 +61,7 @@ export function loadBillingConfigSnapshot(
   }
 }
 
+/** Compute per-line tax and total from snapshotted unit price and modifiers. */
 export function computeLineAmounts(input: {
   unitPriceCents: number
   quantity: number
@@ -81,6 +85,7 @@ export function computeLineAmounts(input: {
   }
 }
 
+/** Sum order line snapshots into subtotal/tax/total using shared-utils billing math. */
 export function computeOrderTotalsFromLines(
   lines: Array<{
     unitPriceCents: number
@@ -100,6 +105,7 @@ export function computeOrderTotalsFromLines(
   })
 }
 
+/** Preview bill totals with discount, service charge, and tip — does not persist to the order. */
 export function computeBillPreview(
   lines: Array<{
     unitPriceCents: number
