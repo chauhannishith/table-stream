@@ -8,13 +8,14 @@ export type HealthCheckResult = {
 }
 
 export type ReadinessResult = {
-  status: 'ok' | 'degraded' | 'error'
+  status: 'ok' | 'error'
   checks: {
     sqlite: HealthCheckResult
-    redis: HealthCheckResult & { optional: boolean }
+    redis: HealthCheckResult
   }
 }
 
+/** Probe SQLite with SELECT 1. */
 export function checkSqlite(db: HubDb): HealthCheckResult {
   try {
     db.run(sql`SELECT 1`)
@@ -27,10 +28,12 @@ export function checkSqlite(db: HubDb): HealthCheckResult {
   }
 }
 
+/** Probe Redis with PING; ok only when the reply is PONG. */
 export async function checkRedis(redis: RedisClient): Promise<HealthCheckResult> {
   try {
     const result = await redis.ping()
-    return { ok: result === 'PONG' }
+    if (result === 'PONG') return { ok: true }
+    return { ok: false, error: `Unexpected ping reply: ${String(result)}` }
   } catch (error) {
     return {
       ok: false,
@@ -39,28 +42,17 @@ export async function checkRedis(redis: RedisClient): Promise<HealthCheckResult>
   }
 }
 
+/** Ready only when both SQLite and Redis succeed. */
 export async function runReadinessChecks(deps: {
   db: HubDb
   redis: RedisClient
 }): Promise<ReadinessResult> {
   const sqlite = checkSqlite(deps.db)
   const redis = await checkRedis(deps.redis)
-
-  if (!sqlite.ok) {
-    return {
-      status: 'error',
-      checks: {
-        sqlite,
-        redis: { ...redis, optional: true },
-      },
-    }
-  }
+  const ok = sqlite.ok && redis.ok
 
   return {
-    status: redis.ok ? 'ok' : 'degraded',
-    checks: {
-      sqlite,
-      redis: { ...redis, optional: true },
-    },
+    status: ok ? 'ok' : 'error',
+    checks: { sqlite, redis },
   }
 }
