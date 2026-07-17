@@ -4,6 +4,7 @@ import { AppError } from '../lib/errors.js'
 import { pickDefined } from '../lib/pick-defined.js'
 import { previewOrderBill, finalizeOrderBill } from '../services/order-billing.js'
 import { recordOrderPayment } from '../services/order-payments.js'
+import { issueOrderInvoice } from '../services/order-invoices.js'
 
 function parseDiscountType(value: string | undefined): DiscountType | undefined {
   if (!value) return undefined
@@ -92,5 +93,18 @@ export const orderBillingRoutes: FastifyPluginAsync = async (app) => {
     )
 
     return result
+  })
+
+  app.post('/orders/:id/invoice', async (request) => {
+    const { id } = request.params as { id: string }
+    const body = request.body as { cashier_id?: string | null }
+
+    return issueOrderInvoice(
+      app.hubDb,
+      app.hubConfig,
+      app.hubConfig.location_id,
+      id,
+      { cashierId: body?.cashier_id },
+    )
   })
 }
