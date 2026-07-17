@@ -23,6 +23,7 @@ import { orderBillingRoutes } from './routes/order-billing.js'
 import { invoiceRoutes } from './routes/invoices.js'
 import { deviceRoutes } from './routes/devices.js'
 import { deviceAuthPlugin } from './plugins/device-auth.js'
+import { authRoutes } from './routes/auth.js'
 
 export type AppDeps = {
   config: HubConfig
@@ -77,6 +78,7 @@ export async function buildApp(deps: AppDeps) {
   await app.register(orderBillingRoutes, { prefix: '/v1' })
   await app.register(invoiceRoutes, { prefix: '/v1' })
   await app.register(deviceRoutes, { prefix: '/v1' })
+  await app.register(authRoutes, { prefix: '/v1' })
   await app.register(orderSubmitRoutes, { prefix: '/v1' })
   await app.register(kdsRoutes, { prefix: '/v1' })
 

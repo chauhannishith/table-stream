@@ -42,3 +42,13 @@ export function hashDeviceToken(token: string): string {
 export function issueDeviceToken(): string {
   return randomBytes(32).toString('base64url')
 }
+
+/** SHA-256 hash for high-entropy staff session tokens. */
+export function hashSessionToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex')
+}
+
+/** Generate a random opaque staff session token. */
+export function issueSessionToken(): string {
+  return randomBytes(32).toString('base64url')
+}
