@@ -2,6 +2,7 @@ import type { HubDb } from '../db/client.js'
 import { AppError } from './errors.js'
 import { getLocationById } from '../repositories/locations.js'
 
+/** Resolve hub status from location row and HUB_ENTITLED env override. */
 export function getEffectiveHubStatus(
   db: HubDb,
   locationId: string,
@@ -15,6 +16,7 @@ export function getEffectiveHubStatus(
   return 'ACTIVE'
 }
 
+/** Reject mutating operations when the hub is suspended (subscription lapsed). */
 export function assertHubWritable(db: HubDb, locationId: string): void {
   if (getEffectiveHubStatus(db, locationId) === 'SUSPENDED') {
     throw new AppError('FORBIDDEN', 'Hub is suspended', 403, {

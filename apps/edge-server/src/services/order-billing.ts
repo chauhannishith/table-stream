@@ -137,6 +137,10 @@ export function previewOrderBill(
   return toBillPreviewDto(totals)
 }
 
+/**
+ * Finalize and lock bill totals on an open order from snapshotted lines.
+ * @throws {AppError} FORBIDDEN when hub is SUSPENDED; NOT_FOUND; CONFLICT when PAID or VOID
+ */
 export function finalizeOrderBill(
   db: HubDb,
   locationId: string,

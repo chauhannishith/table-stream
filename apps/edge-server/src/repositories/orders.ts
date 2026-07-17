@@ -138,6 +138,7 @@ export type FinalizeOrderBillInput = {
   totalCents: number
 }
 
+/** Persist locked bill totals and discount fields; sets order status to CHECK_PRINTED. */
 export function finalizeOrderBill(
   db: HubDb,
   locationId: string,
