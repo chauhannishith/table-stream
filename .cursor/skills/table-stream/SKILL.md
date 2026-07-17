@@ -57,6 +57,17 @@ Do not use YAML merge tags (`!override`) — split prod/dev port files instead.
 - Prefer smallest diff; one logical change per commit
 - Commit tags: `feat(back):`, `feat(front):`, `feat(db):`, `feat(middleware):`, `chore(infra):`
 
+### JSDoc (incremental)
+
+When you edit a file for feature work, document **every exported function** in that file in a **separate commit** (same PR):
+
+- One-line purpose; note non-obvious behavior only
+- `@throws {AppError}` when the function throws client-facing errors
+- Skip redundant `@param` / `@returns` when TypeScript types are enough
+- Skip trivial helpers (DTO mappers, `newId`, timestamp wrappers)
+
+Example commit: `docs(back): jsdoc for order-billing service`
+
 ## Health endpoints
 
 | Service | URL |

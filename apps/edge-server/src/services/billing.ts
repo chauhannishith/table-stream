@@ -3,15 +3,24 @@ import {
   splitLineTax,
   type TaxComponentRates,
 } from '@table-stream/shared-utils'
-import type { PriceTaxMode } from '@table-stream/shared-types/domain'
+import type { DiscountType, PriceTaxMode } from '@table-stream/shared-types/domain'
 import type { OrderLineModifierSnapshot } from '../lib/snapshots.js'
 import { modifierExtraCents } from '../lib/snapshots.js'
+import type { HubDb } from '../db/client.js'
+import { getLocationBillingConfig } from '../repositories/location-billing-config.js'
 
 export type BillingConfigSnapshot = {
   priceTaxMode: PriceTaxMode
   taxComponents: TaxComponentRates
 }
 
+export type BillPreviewOptions = {
+  discountType?: DiscountType
+  discountValue?: number
+  tipCents?: number
+}
+
+/** Extract numeric tax component rates from location billing JSON rules. */
 export function parseTaxComponents(
   taxRules: Record<string, unknown>,
 ): TaxComponentRates {
@@ -24,6 +33,35 @@ export function parseTaxComponents(
   return components
 }
 
+/** Returns service charge percent when enabled in location rules; otherwise undefined. */
+export function parseServiceChargePercent(
+  rules: Record<string, unknown>,
+): number | undefined {
+  if (rules.enabled !== true) return undefined
+  const percent = rules.percent
+  if (typeof percent === 'number' && percent > 0) return percent
+  return undefined
+}
+
+/** Load price/tax mode and component rates for a location (defaults to exclusive, no tax). */
+export function loadBillingConfigSnapshot(
+  db: HubDb,
+  locationId: string,
+): BillingConfigSnapshot {
+  const row = getLocationBillingConfig(db, locationId)
+  if (!row) {
+    return { priceTaxMode: 'EXCLUSIVE', taxComponents: {} }
+  }
+
+  return {
+    priceTaxMode: row.priceTaxMode as BillingConfigSnapshot['priceTaxMode'],
+    taxComponents: parseTaxComponents(
+      JSON.parse(row.taxRulesJson) as Record<string, unknown>,
+    ),
+  }
+}
+
+/** Compute per-line tax and total from snapshotted unit price and modifiers. */
 export function computeLineAmounts(input: {
   unitPriceCents: number
   quantity: number
@@ -47,6 +85,7 @@ export function computeLineAmounts(input: {
   }
 }
 
+/** Sum order line snapshots into subtotal/tax/total using shared-utils billing math. */
 export function computeOrderTotalsFromLines(
   lines: Array<{
     unitPriceCents: number
@@ -63,5 +102,31 @@ export function computeOrderTotalsFromLines(
     })),
     priceTaxMode: billing.priceTaxMode,
     taxComponents: billing.taxComponents,
+  })
+}
+
+/** Preview bill totals with discount, service charge, and tip — does not persist to the order. */
+export function computeBillPreview(
+  lines: Array<{
+    unitPriceCents: number
+    quantity: number
+    modifiers: OrderLineModifierSnapshot[]
+  }>,
+  billing: BillingConfigSnapshot,
+  serviceChargePercent: number | undefined,
+  options: BillPreviewOptions = {},
+) {
+  return computeBillTotals({
+    lines: lines.map((line) => ({
+      enteredUnitPriceCents: line.unitPriceCents,
+      quantity: line.quantity,
+      modifierExtraCents: modifierExtraCents(line.modifiers),
+    })),
+    priceTaxMode: billing.priceTaxMode,
+    taxComponents: billing.taxComponents,
+    discountType: options.discountType,
+    discountValue: options.discountValue,
+    serviceChargePercent,
+    tipCents: options.tipCents,
   })
 }
