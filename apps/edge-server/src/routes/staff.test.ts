@@ -46,13 +46,15 @@ describe('staff routes', () => {
     })
 
     const list = await app.inject({ method: 'GET', url: '/v1/staff' })
-    expect(list.json().staff).toHaveLength(0)
+    expect(list.json().staff.map((s: { name: string }) => s.name)).toEqual([
+      'Test Admin',
+    ])
 
     const all = await app.inject({
       method: 'GET',
       url: '/v1/staff?include_inactive=true',
     })
-    expect(all.json().staff).toHaveLength(1)
+    expect(all.json().staff).toHaveLength(2)
 
     await app.close()
   })

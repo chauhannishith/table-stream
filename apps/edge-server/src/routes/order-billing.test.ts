@@ -119,7 +119,7 @@ describe('order billing routes', () => {
         name: 'Extras',
       },
     })
-    const groupId = groupRes.json().group.id
+    const groupId = groupRes.json().modifier_group.id
 
     const optionRes = await app.inject({
       method: 'POST',

@@ -23,6 +23,7 @@ import { orderBillingRoutes } from './routes/order-billing.js'
 import { invoiceRoutes } from './routes/invoices.js'
 import { deviceRoutes } from './routes/devices.js'
 import { deviceAuthPlugin } from './plugins/device-auth.js'
+import { staffAuthPlugin } from './plugins/staff-auth.js'
 import { authRoutes } from './routes/auth.js'
 
 export type AppDeps = {
@@ -43,7 +44,9 @@ export async function buildApp(deps: AppDeps) {
   app.decorate('hubDb', deps.db)
   app.decorate('redis', deps.redis)
 
-  await app.register(deviceAuthPlugin)
+  // Apply on the root instance so hooks cover all routes (avoid Fastify encapsulation).
+  await deviceAuthPlugin(app, {})
+  await staffAuthPlugin(app, {})
 
   app.setErrorHandler((error, request, reply) => {
     const problem = toUnknownProblemJson(error)
