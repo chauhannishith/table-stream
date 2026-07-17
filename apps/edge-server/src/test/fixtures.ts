@@ -3,7 +3,9 @@ import type { HubConfig } from '../config.js'
 import { buildApp, type AppDeps } from '../app.js'
 import { createHubDbFromSqlite, type HubDb } from '../db/client.js'
 import { applyMigrationsToSqlite } from '../db/migrate.js'
+import { hashDeviceToken, issueDeviceToken } from '../lib/auth.js'
 import type { RedisClient } from '../redis/client.js'
+import { createDevice } from '../repositories/devices.js'
 import { seedHubFromConfig } from '../services/hub-seed.js'
 
 export const testHubConfig: HubConfig = {
@@ -35,18 +37,56 @@ export function createTestRedis(): RedisClient {
   } as unknown as RedisClient
 }
 
-export async function createTestApp(overrides: Partial<AppDeps> = {}) {
+export type TestApp = Awaited<ReturnType<typeof buildApp>> & {
+  testDeviceToken?: string
+}
+
+export async function createTestApp(
+  overrides: Partial<AppDeps> = {},
+): Promise<TestApp> {
   const config = overrides.config ?? testHubConfig
   const db = overrides.db ?? createTestHubDb()
   if (!overrides.db) {
     seedHubFromConfig(db, config)
   }
 
-  return buildApp({
+  const app = (await buildApp({
     config,
     db,
     redis: overrides.redis ?? createTestRedis(),
-  })
+  })) as TestApp
+
+  if (!overrides.db) {
+    const token = issueDeviceToken()
+    createDevice(db, config.location_id, {
+      deviceType: 'COUNTER',
+      name: 'Test Device',
+      deviceTokenHash: hashDeviceToken(token),
+    })
+    app.testDeviceToken = token
+
+    const originalInject = app.inject.bind(app)
+    app.inject = ((opts: Parameters<typeof app.inject>[0]) => {
+      if (typeof opts === 'string') {
+        return originalInject({
+          url: opts,
+          headers: { 'x-device-token': token },
+        })
+      }
+
+      const headers = {
+        'x-device-token': token,
+        ...(opts.headers as Record<string, string> | undefined),
+      }
+
+      return originalInject({
+        ...opts,
+        headers,
+      })
+    }) as typeof app.inject
+  }
+
+  return app
 }
 
 export function seedMinimalLocation(
