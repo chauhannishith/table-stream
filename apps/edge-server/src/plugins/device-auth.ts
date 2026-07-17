@@ -15,6 +15,7 @@ const EXEMPT_PATHS = new Set([
   '/v1/devices/pairing-codes',
 ])
 
+/** Paths that skip device auth: health, status, pairing, and non-/v1 routes. */
 export function isDeviceAuthExempt(pathname: string): boolean {
   if (EXEMPT_PATHS.has(pathname)) return true
   return !pathname.startsWith('/v1/')
