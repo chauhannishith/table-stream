@@ -35,6 +35,23 @@ async function createTakeawayOrderWithLine(
   return orderId
 }
 
+async function createBilledTakeawayOrder(
+  app: Awaited<ReturnType<typeof createTestApp>>,
+  locationId: string,
+  itemId: string,
+) {
+  const orderId = await createTakeawayOrderWithLine(app, locationId, itemId)
+
+  const billRes = await app.inject({
+    method: 'POST',
+    url: `/v1/orders/${orderId}/bill`,
+    payload: {},
+  })
+  expect(billRes.statusCode).toBe(200)
+
+  return orderId
+}
+
 describe('order billing routes', () => {
   it('POST /v1/orders/:id/bill/preview matches shared-utils golden totals', async () => {
     const app = await createTestApp()
@@ -235,6 +252,101 @@ describe('order billing routes', () => {
     expect(res.statusCode).toBe(403)
     expect(res.json().error.code).toBe('FORBIDDEN')
     expect(res.json().error.details.hub_status).toBe('SUSPENDED')
+
+    await app.close()
+  })
+
+  it('POST /v1/orders/:id/payments records tender and marks order PAID', async () => {
+    const app = await createTestApp()
+    const locationId = app.hubConfig.location_id
+
+    setBillingConfig(app.hubDb, locationId, {
+      priceTaxMode: 'EXCLUSIVE',
+      taxRules: { cgst: 2.5, sgst: 2.5 },
+    })
+
+    const category = createCategory(app.hubDb, locationId, { name: 'Mains' })
+    const item = createMenuItemEntry(app.hubDb, locationId, {
+      categoryId: category.id,
+      name: 'Salad',
+      basePriceCents: 1000,
+    })
+
+    const orderId = await createBilledTakeawayOrder(app, locationId, item.id)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/v1/orders/${orderId}/payments`,
+      payload: { tender_type: 'CASH' },
+    })
+
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.payment.tender_type).toBe('CASH')
+    expect(body.payment.status).toBe('CAPTURED')
+    expect(body.payment.amount_cents).toBe(1050)
+    expect(body.order.status).toBe('PAID')
+    expect(body.order.closed_at).toBeTruthy()
+
+    await app.close()
+  })
+
+  it('POST /v1/orders/:id/payments requires bill before payment', async () => {
+    const app = await createTestApp()
+    const locationId = app.hubConfig.location_id
+
+    setBillingConfig(app.hubDb, locationId, {
+      priceTaxMode: 'EXCLUSIVE',
+      taxRules: { cgst: 2.5, sgst: 2.5 },
+    })
+
+    const category = createCategory(app.hubDb, locationId, { name: 'Mains' })
+    const item = createMenuItemEntry(app.hubDb, locationId, {
+      categoryId: category.id,
+      name: 'Bread',
+      basePriceCents: 200,
+    })
+
+    const orderId = await createTakeawayOrderWithLine(app, locationId, item.id)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/v1/orders/${orderId}/payments`,
+      payload: { tender_type: 'CARD' },
+    })
+
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error.message).toMatch(/billed/)
+
+    await app.close()
+  })
+
+  it('POST /v1/orders/:id/payments rejects invalid tender_type', async () => {
+    const app = await createTestApp()
+    const locationId = app.hubConfig.location_id
+
+    setBillingConfig(app.hubDb, locationId, {
+      priceTaxMode: 'EXCLUSIVE',
+      taxRules: { cgst: 2.5, sgst: 2.5 },
+    })
+
+    const category = createCategory(app.hubDb, locationId, { name: 'Mains' })
+    const item = createMenuItemEntry(app.hubDb, locationId, {
+      categoryId: category.id,
+      name: 'Rice',
+      basePriceCents: 300,
+    })
+
+    const orderId = await createBilledTakeawayOrder(app, locationId, item.id)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/v1/orders/${orderId}/payments`,
+      payload: { tender_type: 'BITCOIN' },
+    })
+
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error.code).toBe('VALIDATION_ERROR')
 
     await app.close()
   })

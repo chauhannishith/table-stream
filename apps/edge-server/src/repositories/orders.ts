@@ -167,6 +167,26 @@ export function finalizeOrderBill(
   return getOrderById(db, locationId, id) ?? null
 }
 
+export function markOrderPaid(
+  db: HubDb,
+  locationId: string,
+  id: string,
+): OrderRow | null {
+  const existing = getOrderById(db, locationId, id)
+  if (!existing) return null
+
+  db.update(orders)
+    .set({
+      status: 'PAID',
+      closedAt: nowSqliteTimestamp(),
+      version: existing.version + 1,
+    })
+    .where(and(eq(orders.id, id), eq(orders.locationId, locationId)))
+    .run()
+
+  return getOrderById(db, locationId, id) ?? null
+}
+
 export type UpdateOrderFieldsInput = {
   status?: OrderStatus
   fulfillmentStatus?: string | null
