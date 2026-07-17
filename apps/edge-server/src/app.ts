@@ -22,6 +22,7 @@ import { orderSubmitRoutes, kdsRoutes } from './routes/kds.js'
 import { orderBillingRoutes } from './routes/order-billing.js'
 import { invoiceRoutes } from './routes/invoices.js'
 import { deviceRoutes } from './routes/devices.js'
+import { deviceAuthPlugin } from './plugins/device-auth.js'
 
 export type AppDeps = {
   config: HubConfig
@@ -40,6 +41,8 @@ export async function buildApp(deps: AppDeps) {
   app.decorate('hubConfig', deps.config)
   app.decorate('hubDb', deps.db)
   app.decorate('redis', deps.redis)
+
+  await app.register(deviceAuthPlugin)
 
   app.setErrorHandler((error, request, reply) => {
     const problem = toUnknownProblemJson(error)
