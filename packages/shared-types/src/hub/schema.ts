@@ -4,6 +4,7 @@ import {
   sqliteTable,
   text,
   primaryKey,
+  unique,
 } from 'drizzle-orm/sqlite-core'
 
 const timestamps = {
@@ -446,6 +447,33 @@ export const appliedEvents = sqliteTable('applied_events', {
     .default(sql`(datetime('now'))`),
 })
 
+export const tokenCounters = sqliteTable(
+  'token_counters',
+  {
+    locationId: text('location_id').notNull(),
+    counterKey: text('counter_key').notNull(),
+    value: integer('value').notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.locationId, t.counterKey] })],
+)
+
+export const idempotencyKeys = sqliteTable(
+  'idempotency_keys',
+  {
+    id: text('id').primaryKey(),
+    locationId: text('location_id').notNull(),
+    key: text('key').notNull(),
+    method: text('method').notNull(),
+    path: text('path').notNull(),
+    responseStatus: integer('response_status').notNull(),
+    responseBody: text('response_body').notNull(),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (t) => [unique().on(t.locationId, t.key, t.method, t.path)],
+)
+
 export const hubSchema = {
   organizations,
   locations,
@@ -472,6 +500,8 @@ export const hubSchema = {
   printJobs,
   syncOutbox,
   appliedEvents,
+  tokenCounters,
+  idempotencyKeys,
 }
 
 export type HubSchema = typeof hubSchema

@@ -127,6 +127,38 @@ export function updateOrderTotals(
   return getOrderById(db, locationId, id) ?? null
 }
 
+export type UpdateOrderFieldsInput = {
+  status?: OrderStatus
+  fulfillmentStatus?: string | null
+  tokenNumber?: string | null
+}
+
+export function updateOrderFields(
+  db: HubDb,
+  locationId: string,
+  id: string,
+  input: UpdateOrderFieldsInput,
+): OrderRow | null {
+  const existing = getOrderById(db, locationId, id)
+  if (!existing) return null
+
+  const patch: Partial<typeof orders.$inferInsert> = {
+    version: existing.version + 1,
+  }
+  if (input.status !== undefined) patch.status = input.status
+  if (input.fulfillmentStatus !== undefined) {
+    patch.fulfillmentStatus = input.fulfillmentStatus
+  }
+  if (input.tokenNumber !== undefined) patch.tokenNumber = input.tokenNumber
+
+  db.update(orders)
+    .set(patch)
+    .where(and(eq(orders.id, id), eq(orders.locationId, locationId)))
+    .run()
+
+  return getOrderById(db, locationId, id) ?? null
+}
+
 export function listOrdersByIds(
   db: HubDb,
   locationId: string,

@@ -63,7 +63,7 @@ describe('edge-server routes', () => {
     expect(body.cloud_sync_enabled).toBe(false)
     expect(body.location_name).toBe('Test Location')
     expect(body.db_ready).toBe(true)
-    expect(body.schema_version).toBe('0002_menu_catalog.sql')
+    expect(body.schema_version).toBe('0003_submit_kds.sql')
 
     await app.close()
   })

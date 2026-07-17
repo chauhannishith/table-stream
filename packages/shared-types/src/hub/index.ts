@@ -16,5 +16,7 @@ export {
   zones,
   orders,
   orderLines,
+  tokenCounters,
+  idempotencyKeys,
 } from './schema.js'
 export type { HubSchema } from './schema.js'

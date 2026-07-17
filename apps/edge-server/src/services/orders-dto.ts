@@ -23,6 +23,7 @@ export function toOrderLineDto(row: OrderLineRow) {
     is_submitted: row.isSubmitted,
     submitted_at: row.submittedAt,
     submit_batch: row.submitBatch,
+    kds_visible: row.kdsVisible,
     version: row.version,
   }
 }
