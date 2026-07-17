@@ -167,6 +167,7 @@ export function finalizeOrderBill(
   return getOrderById(db, locationId, id) ?? null
 }
 
+/** Set order status to PAID and stamp closed_at. */
 export function markOrderPaid(
   db: HubDb,
   locationId: string,

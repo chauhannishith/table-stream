@@ -14,6 +14,7 @@ export type CreatePaymentInput = {
   status?: PaymentStatus
 }
 
+/** List payments for an order in creation order. */
 export function listPaymentsByOrder(db: HubDb, orderId: string): PaymentRow[] {
   return db
     .select()
@@ -23,6 +24,7 @@ export function listPaymentsByOrder(db: HubDb, orderId: string): PaymentRow[] {
     .all()
 }
 
+/** Fetch a payment scoped to its parent order. */
 export function getPaymentById(
   db: HubDb,
   orderId: string,
@@ -35,6 +37,7 @@ export function getPaymentById(
     .get()
 }
 
+/** Insert a captured payment row for an order (MVP: manual tender at counter). */
 export function createPayment(db: HubDb, input: CreatePaymentInput): PaymentRow {
   const id = newId('pay')
   db.insert(payments)

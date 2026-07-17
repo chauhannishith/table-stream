@@ -26,6 +26,11 @@ function toPaymentDto(row: PaymentRow) {
   }
 }
 
+/**
+ * Record full payment for a billed order and mark it PAID.
+ * MVP requires CHECK_PRINTED status and amount matching order total.
+ * @throws {AppError} FORBIDDEN when hub is SUSPENDED; NOT_FOUND; CONFLICT; VALIDATION_ERROR
+ */
 export function recordOrderPayment(
   db: HubDb,
   locationId: string,
