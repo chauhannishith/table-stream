@@ -1,15 +1,21 @@
 import type { DiscountType } from '@table-stream/shared-types/domain'
 import type { HubDb } from '../db/client.js'
+import { assertHubWritable } from '../lib/hub-guard.js'
 import { AppError } from '../lib/errors.js'
 import type { OrderLineModifierSnapshot } from '../lib/snapshots.js'
 import { getLocationBillingConfig } from '../repositories/location-billing-config.js'
 import { listOrderLines } from '../repositories/order-lines.js'
-import { getOrderById } from '../repositories/orders.js'
+import {
+  finalizeOrderBill as persistOrderBill,
+  getOrderById,
+  type OrderRow,
+} from '../repositories/orders.js'
 import {
   computeBillPreview,
   loadBillingConfigSnapshot,
   parseServiceChargePercent,
 } from './billing.js'
+import { getOrderEntry } from './orders.js'
 
 export type BillPreviewInput = {
   discountType?: DiscountType
@@ -45,6 +51,69 @@ function toBillPreviewDto(totals: ReturnType<typeof computeBillPreview>): BillPr
   }
 }
 
+function resolveBillInput(
+  order: OrderRow,
+  input: BillPreviewInput,
+): Required<Pick<BillPreviewInput, 'tipCents'>> & {
+  discountType?: DiscountType
+  discountValue?: number
+} {
+  return {
+    discountType:
+      input.discountType ??
+      (order.discountType as DiscountType | null | undefined) ??
+      undefined,
+    discountValue: input.discountValue ?? order.discountValue ?? undefined,
+    tipCents: input.tipCents ?? order.tipCents,
+  }
+}
+
+function computeBillForOrder(
+  db: HubDb,
+  locationId: string,
+  order: OrderRow,
+  input: BillPreviewInput,
+) {
+  const lines = listOrderLines(db, order.id)
+  if (lines.length === 0) {
+    throw new AppError('VALIDATION_ERROR', 'Order has no lines', 400, {
+      order_id: order.id,
+    })
+  }
+
+  const billing = loadBillingConfigSnapshot(db, locationId)
+  const configRow = getLocationBillingConfig(db, locationId)
+  const serviceChargeRules = configRow
+    ? (JSON.parse(configRow.serviceChargeRulesJson) as Record<string, unknown>)
+    : {}
+  const serviceChargePercent = parseServiceChargePercent(serviceChargeRules)
+  const resolved = resolveBillInput(order, input)
+
+  const totals = computeBillPreview(
+    lines.map((line) => ({
+      unitPriceCents: line.unitPriceCents,
+      quantity: line.quantity,
+      modifiers: parseModifiers(line.modifiersJson),
+    })),
+    billing,
+    serviceChargePercent,
+    resolved,
+  )
+
+  return { totals, resolved }
+}
+
+function assertBillableOrder(order: OrderRow, orderId: string): void {
+  if (order.status === 'PAID' || order.status === 'VOID') {
+    throw new AppError(
+      'CONFLICT',
+      'Cannot bill a closed order',
+      409,
+      { order_id: orderId, status: order.status },
+    )
+  }
+}
+
 /**
  * Preview bill totals for an open order from snapshotted lines and location billing config.
  * Request overrides apply to discount/tip; service charge comes from location rules.
@@ -61,42 +130,44 @@ export function previewOrderBill(
     throw new AppError('NOT_FOUND', 'Order not found', 404, { order_id: orderId })
   }
 
-  if (order.status === 'PAID' || order.status === 'VOID') {
-    throw new AppError(
-      'CONFLICT',
-      'Cannot preview bill for a closed order',
-      409,
-      { order_id: orderId, status: order.status },
-    )
-  }
+  assertBillableOrder(order, orderId)
 
-  const lines = listOrderLines(db, orderId)
-  const billing = loadBillingConfigSnapshot(db, locationId)
-
-  const configRow = getLocationBillingConfig(db, locationId)
-  const serviceChargeRules = configRow
-    ? (JSON.parse(configRow.serviceChargeRulesJson) as Record<string, unknown>)
-    : {}
-  const serviceChargePercent = parseServiceChargePercent(serviceChargeRules)
-
-  const discountType =
-    input.discountType ??
-    (order.discountType as DiscountType | null | undefined) ??
-    undefined
-  const discountValue =
-    input.discountValue ?? order.discountValue ?? undefined
-  const tipCents = input.tipCents ?? order.tipCents
-
-  const totals = computeBillPreview(
-    lines.map((line) => ({
-      unitPriceCents: line.unitPriceCents,
-      quantity: line.quantity,
-      modifiers: parseModifiers(line.modifiersJson),
-    })),
-    billing,
-    serviceChargePercent,
-    { discountType, discountValue, tipCents },
-  )
+  const { totals } = computeBillForOrder(db, locationId, order, input)
 
   return toBillPreviewDto(totals)
+}
+
+export function finalizeOrderBill(
+  db: HubDb,
+  locationId: string,
+  orderId: string,
+  input: BillPreviewInput = {},
+) {
+  assertHubWritable(db, locationId)
+
+  const order = getOrderById(db, locationId, orderId)
+  if (!order) {
+    throw new AppError('NOT_FOUND', 'Order not found', 404, { order_id: orderId })
+  }
+
+  assertBillableOrder(order, orderId)
+
+  const { totals, resolved } = computeBillForOrder(db, locationId, order, input)
+
+  const updated = persistOrderBill(db, locationId, orderId, {
+    discountType: resolved.discountType ?? null,
+    discountValue: resolved.discountValue ?? null,
+    discountCents: totals.discountCents,
+    serviceChargeCents: totals.serviceChargeCents,
+    tipCents: resolved.tipCents,
+    subtotalCents: totals.subtotalCents,
+    taxCents: totals.taxCents,
+    totalCents: totals.totalCents,
+  })
+
+  if (!updated) {
+    throw new AppError('NOT_FOUND', 'Order not found', 404, { order_id: orderId })
+  }
+
+  return getOrderEntry(db, locationId, orderId)!
 }

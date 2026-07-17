@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, isNull, notInArray } from 'drizzle-orm'
 import { orders } from '@table-stream/shared-types/hub'
-import type { OrderStatus, OrderType } from '@table-stream/shared-types/domain'
+import type { DiscountType, OrderStatus, OrderType } from '@table-stream/shared-types/domain'
 import type { HubDb } from '../db/client.js'
 import { newId } from '../lib/ids.js'
 import { nowSqliteTimestamp } from '../lib/timestamps.js'
@@ -119,6 +119,45 @@ export function updateOrderTotals(
       discountCents: input.discountCents ?? existing.discountCents,
       serviceChargeCents:
         input.serviceChargeCents ?? existing.serviceChargeCents,
+      version: existing.version + 1,
+    })
+    .where(and(eq(orders.id, id), eq(orders.locationId, locationId)))
+    .run()
+
+  return getOrderById(db, locationId, id) ?? null
+}
+
+export type FinalizeOrderBillInput = {
+  discountType?: DiscountType | null
+  discountValue?: number | null
+  discountCents: number
+  serviceChargeCents: number
+  tipCents: number
+  subtotalCents: number
+  taxCents: number
+  totalCents: number
+}
+
+export function finalizeOrderBill(
+  db: HubDb,
+  locationId: string,
+  id: string,
+  input: FinalizeOrderBillInput,
+): OrderRow | null {
+  const existing = getOrderById(db, locationId, id)
+  if (!existing) return null
+
+  db.update(orders)
+    .set({
+      discountType: input.discountType ?? null,
+      discountValue: input.discountValue ?? null,
+      discountCents: input.discountCents,
+      serviceChargeCents: input.serviceChargeCents,
+      tipCents: input.tipCents,
+      subtotalCents: input.subtotalCents,
+      taxCents: input.taxCents,
+      totalCents: input.totalCents,
+      status: 'CHECK_PRINTED',
       version: existing.version + 1,
     })
     .where(and(eq(orders.id, id), eq(orders.locationId, locationId)))
