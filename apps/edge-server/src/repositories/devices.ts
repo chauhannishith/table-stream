@@ -15,6 +15,7 @@ export type CreateDeviceInput = {
   assignedStationIdsJson?: string | null
 }
 
+/** Insert a paired device row; stores only the token hash. */
 export function createDevice(
   db: HubDb,
   locationId: string,
@@ -45,6 +46,7 @@ export function createDevice(
   return row
 }
 
+/** Fetch a device scoped to a location. */
 export function getDeviceById(
   db: HubDb,
   locationId: string,
@@ -57,6 +59,7 @@ export function getDeviceById(
     .get()
 }
 
+/** List active devices for a location. */
 export function listActiveDevices(db: HubDb, locationId: string): DeviceRow[] {
   return db
     .select()
@@ -67,6 +70,7 @@ export function listActiveDevices(db: HubDb, locationId: string): DeviceRow[] {
     .all()
 }
 
+/** Look up an active device by SHA-256 device token hash. */
 export function findActiveDeviceByTokenHash(
   db: HubDb,
   locationId: string,
@@ -85,6 +89,7 @@ export function findActiveDeviceByTokenHash(
     .get()
 }
 
+/** Update last_seen_at heartbeat for an authenticated device. */
 export function touchDeviceLastSeen(
   db: HubDb,
   locationId: string,

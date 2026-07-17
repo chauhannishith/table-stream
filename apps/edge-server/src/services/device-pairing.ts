@@ -33,6 +33,7 @@ function toDeviceDto(row: DeviceRow) {
   }
 }
 
+/** Issue a short-lived pairing code for admin display on the hub. */
 export function createDevicePairingCode(
   locationId: string,
   ttlMs = 5 * 60 * 1000,
@@ -44,6 +45,10 @@ export function createDevicePairingCode(
   }
 }
 
+/**
+ * Pair a LAN device with a one-time pairing code and return a device_token.
+ * @throws {AppError} UNAUTHORIZED when the code is invalid/expired; VALIDATION_ERROR for bad input
+ */
 export function pairDevice(
   db: HubDb,
   locationId: string,

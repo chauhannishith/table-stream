@@ -18,6 +18,7 @@ function pruneExpired(now = Date.now()): void {
   }
 }
 
+/** Create a short-lived 6-digit pairing code for a location (in-memory). */
 export function issuePairingCode(
   locationId: string,
   ttlMs = 5 * 60 * 1000,
@@ -33,6 +34,7 @@ export function issuePairingCode(
   return record
 }
 
+/** Consume a pairing code once; returns false when missing or expired. */
 export function consumePairingCode(
   locationId: string,
   code: string,
@@ -45,6 +47,7 @@ export function consumePairingCode(
   return true
 }
 
+/** Clear all in-memory pairing codes (tests). */
 export function clearPairingCodes(): void {
   store.clear()
 }
