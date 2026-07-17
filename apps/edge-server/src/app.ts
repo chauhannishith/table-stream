@@ -19,6 +19,7 @@ import { locationBillingRoutes } from './routes/location-billing.js'
 import { kdsStationRoutes } from './routes/kds-stations.js'
 import { orderRoutes } from './routes/orders.js'
 import { orderSubmitRoutes, kdsRoutes } from './routes/kds.js'
+import { orderBillingRoutes } from './routes/order-billing.js'
 
 export type AppDeps = {
   config: HubConfig
@@ -68,6 +69,7 @@ export async function buildApp(deps: AppDeps) {
   await app.register(locationBillingRoutes, { prefix: '/v1' })
   await app.register(kdsStationRoutes, { prefix: '/v1' })
   await app.register(orderRoutes, { prefix: '/v1' })
+  await app.register(orderBillingRoutes, { prefix: '/v1' })
   await app.register(orderSubmitRoutes, { prefix: '/v1' })
   await app.register(kdsRoutes, { prefix: '/v1' })
 
