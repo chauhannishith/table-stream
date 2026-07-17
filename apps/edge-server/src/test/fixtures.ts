@@ -3,9 +3,11 @@ import type { HubConfig } from '../config.js'
 import { buildApp, type AppDeps } from '../app.js'
 import { createHubDbFromSqlite, type HubDb } from '../db/client.js'
 import { applyMigrationsToSqlite } from '../db/migrate.js'
-import { hashDeviceToken, issueDeviceToken } from '../lib/auth.js'
+import { hashDeviceToken, hashPin, issueDeviceToken } from '../lib/auth.js'
+import { createStaffSession } from '../lib/staff-sessions.js'
 import type { RedisClient } from '../redis/client.js'
 import { createDevice } from '../repositories/devices.js'
+import { createStaff } from '../repositories/staff.js'
 import { seedHubFromConfig } from '../services/hub-seed.js'
 
 export const testHubConfig: HubConfig = {
@@ -39,6 +41,7 @@ export function createTestRedis(): RedisClient {
 
 export type TestApp = Awaited<ReturnType<typeof buildApp>> & {
   testDeviceToken?: string
+  testStaffToken?: string
 }
 
 export async function createTestApp(
@@ -65,19 +68,38 @@ export async function createTestApp(
     })
     app.testDeviceToken = token
 
+    const admin = createStaff(db, config.location_id, {
+      name: 'Test Admin',
+      role: 'ADMIN',
+      pinHash: hashPin('0000'),
+    })
+    const { token: staffToken } = createStaffSession({
+      locationId: config.location_id,
+      staffId: admin.id,
+      role: admin.role,
+    })
+    app.testStaffToken = staffToken
+
     const originalInject = app.inject.bind(app)
     app.inject = ((opts: Parameters<typeof app.inject>[0]) => {
       if (typeof opts === 'string') {
         return originalInject({
           url: opts,
-          headers: { 'x-device-token': token },
+          headers: {
+            'x-device-token': token,
+            'x-staff-token': staffToken,
+          },
         })
       }
 
-      const headers = {
-        'x-device-token': token,
-        ...(opts.headers as Record<string, string> | undefined),
+      const incoming = {
+        ...((opts.headers as Record<string, string> | undefined) ?? {}),
       }
+      const headers: Record<string, string> = { ...incoming }
+      if (!('x-device-token' in headers)) headers['x-device-token'] = token
+      if (!('x-staff-token' in headers)) headers['x-staff-token'] = staffToken
+      if (headers['x-device-token'] === '') delete headers['x-device-token']
+      if (headers['x-staff-token'] === '') delete headers['x-staff-token']
 
       return originalInject({
         ...opts,
