@@ -29,6 +29,7 @@ function queueScore(submittedAt?: string | null): number {
   return Number.isNaN(parsed) ? Date.now() : parsed
 }
 
+/** Mirror newly submitted station-routed lines into Redis KDS queue and item keys. */
 export async function cacheSubmittedKdsLines(
   redis: RedisClient,
   input: {

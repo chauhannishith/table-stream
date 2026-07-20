@@ -8,6 +8,7 @@ import {
 import { listKdsQueue, parseKdsLineStatus, updateKdsLineStatus } from '../services/kds.js'
 import { submitOrder } from '../services/order-submit.js'
 
+/** Submit draft order lines and cache station-routed KDS entries in Redis. */
 export const orderSubmitRoutes: FastifyPluginAsync = async (app) => {
   app.post('/orders/:id/submit', async (request, reply) => {
     const { id } = request.params as { id: string }
@@ -55,6 +56,7 @@ export const orderSubmitRoutes: FastifyPluginAsync = async (app) => {
   })
 }
 
+/** Expose KDS queue reads and line-status transitions. */
 export const kdsRoutes: FastifyPluginAsync = async (app) => {
   app.get('/kds/queue', async (request) => {
     const query = request.query as { station_id?: string }

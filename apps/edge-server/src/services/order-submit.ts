@@ -23,6 +23,7 @@ function nextOrderStatus(current: string): OrderStatus {
   return current as OrderStatus
 }
 
+/** @throws {AppError} NOT_FOUND when order is missing; VALIDATION_ERROR when no draft lines exist */
 export async function submitOrder(
   db: HubDb,
   redis: RedisClient,
