@@ -31,7 +31,12 @@ export const orderSubmitRoutes: FastifyPluginAsync = async (app) => {
       }
     }
 
-    const result = submitOrder(app.hubDb, app.hubConfig.location_id, id)
+    const result = await submitOrder(
+      app.hubDb,
+      app.redis,
+      app.hubConfig.location_id,
+      id,
+    )
     const body = { submission: result }
 
     if (key) {
