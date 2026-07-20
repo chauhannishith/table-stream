@@ -19,7 +19,7 @@ describe('edge-server routes', () => {
     await app.close()
   })
 
-  it('GET /health/ready returns 200 when sqlite is reachable', async () => {
+  it('GET /health/ready returns 200 when sqlite and redis are reachable', async () => {
     const app = await createTestApp()
 
     const res = await app.inject({ method: 'GET', url: '/health/ready' })
@@ -28,7 +28,8 @@ describe('edge-server routes', () => {
     const body = res.json()
     expect(body.status).toBe('ok')
     expect(body.checks.sqlite.ok).toBe(true)
-    expect(body.checks.redis.optional).toBe(true)
+    expect(body.checks.redis.ok).toBe(true)
+    expect(body.checks.redis).not.toHaveProperty('optional')
 
     await app.close()
   })
@@ -48,6 +49,28 @@ describe('edge-server routes', () => {
     const body = res.json()
     expect(body.status).toBe('error')
     expect(body.checks.sqlite.ok).toBe(false)
+
+    await app.close()
+  })
+
+  it('GET /health/ready returns 503 when redis is down', async () => {
+    const failingRedis = {
+      connect: async () => undefined,
+      ping: async () => {
+        throw new Error('redis down')
+      },
+    } as unknown as ReturnType<typeof createTestRedis>
+
+    const app = await createTestApp({ redis: failingRedis })
+
+    const res = await app.inject({ method: 'GET', url: '/health/ready' })
+    expect(res.statusCode).toBe(503)
+
+    const body = res.json()
+    expect(body.status).toBe('error')
+    expect(body.checks.sqlite.ok).toBe(true)
+    expect(body.checks.redis.ok).toBe(false)
+    expect(body.checks.redis.error).toMatch(/redis down/)
 
     await app.close()
   })

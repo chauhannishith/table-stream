@@ -11,13 +11,13 @@ export const healthRoutes: FastifyPluginAsync = async (app) => {
     uptime_seconds: Math.floor(process.uptime()),
   }))
 
-  app.get('/health/ready', async (request, reply) => {
+  app.get('/health/ready', async (_request, reply) => {
     const result = await runReadinessChecks({
       db: app.hubDb,
       redis: app.redis,
     })
 
-    const statusCode = result.checks.sqlite.ok ? 200 : 503
+    const statusCode = result.status === 'ok' ? 200 : 503
     return reply.status(statusCode).send({
       status: result.status,
       service: 'edge-server',

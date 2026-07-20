@@ -46,7 +46,7 @@ describe('checkRedis', () => {
 })
 
 describe('runReadinessChecks', () => {
-  it('is degraded when sqlite is ok but redis is not', async () => {
+  it('is error when sqlite is ok but redis is not', async () => {
     const db = { run: vi.fn() } as unknown as HubDb
     const redis = {
       ping: async () => {
@@ -55,7 +55,7 @@ describe('runReadinessChecks', () => {
     } as unknown as RedisClient
 
     const result = await runReadinessChecks({ db, redis })
-    expect(result.status).toBe('degraded')
+    expect(result.status).toBe('error')
     expect(result.checks.sqlite.ok).toBe(true)
     expect(result.checks.redis.ok).toBe(false)
   })
@@ -71,5 +71,15 @@ describe('runReadinessChecks', () => {
     const result = await runReadinessChecks({ db, redis })
     expect(result.status).toBe('error')
     expect(result.checks.sqlite.ok).toBe(false)
+  })
+
+  it('is ok when sqlite and redis both succeed', async () => {
+    const db = { run: vi.fn() } as unknown as HubDb
+    const redis = { ping: async () => 'PONG' } as unknown as RedisClient
+
+    const result = await runReadinessChecks({ db, redis })
+    expect(result.status).toBe('ok')
+    expect(result.checks.sqlite.ok).toBe(true)
+    expect(result.checks.redis.ok).toBe(true)
   })
 })
