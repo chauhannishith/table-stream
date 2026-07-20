@@ -38,6 +38,8 @@ export function createTestRedis(): RedisClient {
     ping: async () => 'PONG',
     zadd: async () => 1,
     hset: async () => 1,
+    xadd: async () => '0-1',
+    xread: async () => null,
   } as unknown as RedisClient
 }
 

@@ -1,7 +1,8 @@
 import type { OrderLineStatus } from '@table-stream/shared-types/domain'
 import type { HubDb } from '../db/client.js'
 import { AppError } from '../lib/errors.js'
-import { publishHubEvent } from '../lib/hub-events.js'
+import { publishHubStreamEvent } from '../lib/hub-stream.js'
+import type { RedisClient } from '../redis/client.js'
 import {
   getOrderLineByIdGlobal,
   listKdsQueueLines,
@@ -39,8 +40,9 @@ export function listKdsQueue(
   return items
 }
 
-export function updateKdsLineStatus(
+export async function updateKdsLineStatus(
   db: HubDb,
+  redis: RedisClient,
   locationId: string,
   lineId: string,
   status: OrderLineStatus,
@@ -84,7 +86,7 @@ export function updateKdsLineStatus(
   })
 
   const dto = toOrderLineDto(updated!)
-  publishHubEvent(locationId, 'line.updated', {
+  await publishHubStreamEvent(redis, locationId, 'line.updated', {
     order_id: line.orderId,
     line_id: lineId,
     status: dto.status,
