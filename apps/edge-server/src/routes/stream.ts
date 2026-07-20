@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { readHubStreamEvents } from '../lib/hub-stream.js'
 
+/** WebSocket bridge that forwards Redis stream events to LAN clients. */
 export const streamRoutes: FastifyPluginAsync = async (app) => {
   app.get('/stream', { websocket: true }, (socket) => {
     const locationId = app.hubConfig.location_id

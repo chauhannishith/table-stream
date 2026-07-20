@@ -27,6 +27,7 @@ function eventToStreamFields(event: HubStreamEvent): string[] {
   ]
 }
 
+/** Decode a Redis stream field array into a hub event envelope. */
 export function parseHubStreamFields(fields: string[]): HubStreamEvent | null {
   const map: Record<string, string> = {}
   for (let i = 0; i < fields.length; i += 2) {
@@ -53,6 +54,7 @@ export function parseHubStreamFields(fields: string[]): HubStreamEvent | null {
   }
 }
 
+/** Append a domain event to the hub Redis stream (`ts:stream:events`). */
 export async function publishHubStreamEvent(
   redis: RedisClient,
   locationId: string,
@@ -70,6 +72,7 @@ export async function publishHubStreamEvent(
   return redis.xadd(streamEventsKey(), '*', ...eventToStreamFields(event))
 }
 
+/** Read hub stream entries after `lastId`, optionally blocking for new events. */
 export async function readHubStreamEvents(
   redis: RedisClient,
   lastId: string,
