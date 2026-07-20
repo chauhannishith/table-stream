@@ -4,6 +4,7 @@ import {
   kdsQueueKey,
   leaseKey,
   leaseMetaKey,
+  streamEventsKey,
 } from './redis-keys.js'
 
 describe('redis lease keys', () => {
@@ -21,5 +22,9 @@ describe('redis lease keys', () => {
     expect(kdsItemKey('station_1', 'line_9')).toBe(
       'ts:kds:station_1:item:line_9',
     )
+  })
+
+  it('builds hub event stream key per PLANNING §2.6', () => {
+    expect(streamEventsKey()).toBe('ts:stream:events')
   })
 })
