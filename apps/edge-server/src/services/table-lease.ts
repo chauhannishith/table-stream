@@ -3,6 +3,7 @@ import { AppError } from '../lib/errors.js'
 import { leaseKey, leaseMetaKey } from '../lib/redis-keys.js'
 import type { RedisClient } from '../redis/client.js'
 
+/** Default table lease TTL (5 minutes) per PLANNING §2.3. */
 export const DEFAULT_LEASE_TTL_SECONDS = 300
 
 export type AcquireTableLeaseInput = {
