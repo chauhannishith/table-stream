@@ -36,6 +36,8 @@ export function createTestRedis(): RedisClient {
   return {
     connect: async () => undefined,
     ping: async () => 'PONG',
+    zadd: async () => 1,
+    hset: async () => 1,
   } as unknown as RedisClient
 }
 

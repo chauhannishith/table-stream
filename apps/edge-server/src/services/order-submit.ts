@@ -2,6 +2,7 @@ import type { OrderStatus } from '@table-stream/shared-types/domain'
 import type { HubDb } from '../db/client.js'
 import { AppError } from '../lib/errors.js'
 import { publishHubEvent } from '../lib/hub-events.js'
+import type { RedisClient } from '../redis/client.js'
 import {
   listDraftOrderLines,
   nextSubmitBatch,
@@ -12,6 +13,7 @@ import {
   updateOrderFields,
 } from '../repositories/orders.js'
 import { nextTokenNumber } from '../repositories/token-counters.js'
+import { cacheSubmittedKdsLines } from './kds-cache.js'
 import { getOrderEntry } from './orders.js'
 import { toOrderLineDto } from './orders-dto.js'
 
@@ -21,8 +23,10 @@ function nextOrderStatus(current: string): OrderStatus {
   return current as OrderStatus
 }
 
-export function submitOrder(
+/** @throws {AppError} NOT_FOUND when order is missing; VALIDATION_ERROR when no draft lines exist */
+export async function submitOrder(
   db: HubDb,
+  redis: RedisClient,
   locationId: string,
   orderId: string,
 ) {
@@ -65,6 +69,11 @@ export function submitOrder(
 
   const updated = getOrderEntry(db, locationId, orderId)!
   const lineDtos = submittedLines.map(toOrderLineDto)
+
+  await cacheSubmittedKdsLines(redis, {
+    order: updated,
+    lines: lineDtos,
+  })
 
   publishHubEvent(locationId, 'order.submitted', {
     order_id: orderId,
