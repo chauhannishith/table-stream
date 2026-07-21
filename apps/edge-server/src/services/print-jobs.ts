@@ -234,6 +234,9 @@ export function updatePrintJobStatus(
   const updated = persistPrintJobStatus(db, locationId, jobId, status, {
     incrementAttempts: status === 'FAILED',
   })
+  if (!updated) {
+    throw new AppError('NOT_FOUND', 'Print job not found', 404, { id: jobId })
+  }
 
-  return toPrintJobDto(updated!)
+  return toPrintJobDto(updated)
 }
