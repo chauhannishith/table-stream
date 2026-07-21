@@ -38,6 +38,9 @@ function createKdsRedis(): RedisClient & {
       hashes.set(key, { ...(hashes.get(key) ?? {}), ...data })
       return Object.keys(data).length
     },
+    async xadd(): Promise<string> {
+      return '0-1'
+    },
     zrangeWithScores(key: string): QueueEntry[] {
       return [...(queues.get(key) ?? [])]
     },

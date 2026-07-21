@@ -23,3 +23,8 @@ export function kdsQueueKey(stationId: string): string {
 export function kdsItemKey(stationId: string, orderLineId: string): string {
   return `ts:kds:${stationId}:item:${orderLineId}`
 }
+
+/** Redis stream key for cross-client hub domain events. */
+export function streamEventsKey(): string {
+  return 'ts:stream:events'
+}

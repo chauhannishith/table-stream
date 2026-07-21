@@ -1,7 +1,7 @@
 import type { OrderStatus } from '@table-stream/shared-types/domain'
 import type { HubDb } from '../db/client.js'
 import { AppError } from '../lib/errors.js'
-import { publishHubEvent } from '../lib/hub-events.js'
+import { publishHubStreamEvent } from '../lib/hub-stream.js'
 import type { RedisClient } from '../redis/client.js'
 import {
   listDraftOrderLines,
@@ -75,7 +75,7 @@ export async function submitOrder(
     lines: lineDtos,
   })
 
-  publishHubEvent(locationId, 'order.submitted', {
+  await publishHubStreamEvent(redis, locationId, 'order.submitted', {
     order_id: orderId,
     submit_batch: submitBatch,
     token_number: updated.token_number,

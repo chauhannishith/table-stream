@@ -78,8 +78,9 @@ export const kdsRoutes: FastifyPluginAsync = async (app) => {
       throw new AppError('VALIDATION_ERROR', 'status is required', 400)
     }
 
-    const line = updateKdsLineStatus(
+    const line = await updateKdsLineStatus(
       app.hubDb,
+      app.redis,
       app.hubConfig.location_id,
       id,
       parseKdsLineStatus(body.status),
