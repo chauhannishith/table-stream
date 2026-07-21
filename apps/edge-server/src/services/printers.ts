@@ -11,6 +11,7 @@ import {
 } from '../repositories/printers.js'
 import { toPrinterDto } from './printers-dto.js'
 
+/** @throws {AppError} VALIDATION_ERROR when role is not ORDERING, KITCHEN, or COLLECTION */
 export function parsePrinterRole(value: string) {
   const parsed = PrinterRole.safeParse(value)
   if (!parsed.success) {
@@ -21,6 +22,7 @@ export function parsePrinterRole(value: string) {
   return parsed.data
 }
 
+/** List configured printers for a location. */
 export function listPrintersForLocation(
   db: HubDb,
   locationId: string,
@@ -29,6 +31,7 @@ export function listPrintersForLocation(
   return listPrinters(db, locationId, options).map(toPrinterDto)
 }
 
+/** Create a printer row and return its API DTO. */
 export function createPrinterEntry(
   db: HubDb,
   locationId: string,
@@ -37,6 +40,7 @@ export function createPrinterEntry(
   return toPrinterDto(createPrinter(db, locationId, input))
 }
 
+/** Update a printer row; returns null when the printer is missing. */
 export function updatePrinterEntry(
   db: HubDb,
   locationId: string,
