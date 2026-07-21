@@ -42,6 +42,7 @@ const SETUP_WRITE_PREFIXES = [
   '/v1/staff',
   '/v1/location/billing-config',
   '/v1/kds-stations',
+  '/v1/printers',
 ] as const
 
 const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
