@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { AppError } from '../lib/errors.js'
 import { getPrintConfig, parsePrintStages, setPrintConfig } from '../services/print-config.js'
 
+/** Admin routes for per-location print stage toggles. */
 export const locationPrintConfigRoutes: FastifyPluginAsync = async (app) => {
   app.get('/location/print-config', async () => {
     return {
