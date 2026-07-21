@@ -16,6 +16,7 @@ import { zoneRoutes } from './routes/zones.js'
 import { tableRoutes } from './routes/tables.js'
 import { staffRoutes } from './routes/staff.js'
 import { locationBillingRoutes } from './routes/location-billing.js'
+import { locationPrintConfigRoutes } from './routes/location-print-config.js'
 import { kdsStationRoutes } from './routes/kds-stations.js'
 import { printerRoutes } from './routes/printers.js'
 import { orderRoutes } from './routes/orders.js'
@@ -77,6 +78,7 @@ export async function buildApp(deps: AppDeps) {
   await app.register(tableRoutes, { prefix: '/v1' })
   await app.register(staffRoutes, { prefix: '/v1' })
   await app.register(locationBillingRoutes, { prefix: '/v1' })
+  await app.register(locationPrintConfigRoutes, { prefix: '/v1' })
   await app.register(kdsStationRoutes, { prefix: '/v1' })
   await app.register(printerRoutes, { prefix: '/v1' })
   await app.register(orderRoutes, { prefix: '/v1' })
