@@ -41,6 +41,7 @@ const SETUP_WRITE_PREFIXES = [
   '/v1/tables',
   '/v1/staff',
   '/v1/location/billing-config',
+  '/v1/location/print-config',
   '/v1/kds-stations',
   '/v1/printers',
 ] as const
