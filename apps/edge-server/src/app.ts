@@ -19,6 +19,7 @@ import { locationBillingRoutes } from './routes/location-billing.js'
 import { locationPrintConfigRoutes } from './routes/location-print-config.js'
 import { kdsStationRoutes } from './routes/kds-stations.js'
 import { printerRoutes } from './routes/printers.js'
+import { printJobRoutes } from './routes/print-jobs.js'
 import { orderRoutes } from './routes/orders.js'
 import { orderSubmitRoutes, kdsRoutes } from './routes/kds.js'
 import { orderBillingRoutes } from './routes/order-billing.js'
@@ -81,6 +82,7 @@ export async function buildApp(deps: AppDeps) {
   await app.register(locationPrintConfigRoutes, { prefix: '/v1' })
   await app.register(kdsStationRoutes, { prefix: '/v1' })
   await app.register(printerRoutes, { prefix: '/v1' })
+  await app.register(printJobRoutes, { prefix: '/v1' })
   await app.register(orderRoutes, { prefix: '/v1' })
   await app.register(orderBillingRoutes, { prefix: '/v1' })
   await app.register(invoiceRoutes, { prefix: '/v1' })
