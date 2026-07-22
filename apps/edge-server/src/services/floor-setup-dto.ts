@@ -10,6 +10,7 @@ export function toZoneDto(row: ZoneRow) {
     location_id: row.locationId,
     name: row.name,
     sort_order: row.sortOrder,
+    tax_rules: JSON.parse(row.taxRulesJson) as Record<string, number>,
     is_active: row.isActive,
     updated_at: row.updatedAt,
   }

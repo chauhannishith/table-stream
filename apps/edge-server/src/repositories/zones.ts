@@ -44,6 +44,8 @@ export type CreateZoneInput = {
   name: string
   sortOrder?: number
   isActive?: boolean
+  /** JSON map of tax component rates; empty inherits location defaults. */
+  taxRulesJson?: string
 }
 
 export function createZone(
@@ -59,6 +61,7 @@ export function createZone(
       name: input.name,
       sortOrder: input.sortOrder ?? 0,
       isActive: input.isActive ?? true,
+      taxRulesJson: input.taxRulesJson ?? '{}',
     })
     .run()
 
@@ -73,6 +76,7 @@ export type UpdateZoneInput = {
   name?: string
   sortOrder?: number
   isActive?: boolean
+  taxRulesJson?: string
 }
 
 export function updateZone(
@@ -90,6 +94,7 @@ export function updateZone(
   if (input.name !== undefined) patch.name = input.name
   if (input.sortOrder !== undefined) patch.sortOrder = input.sortOrder
   if (input.isActive !== undefined) patch.isActive = input.isActive
+  if (input.taxRulesJson !== undefined) patch.taxRulesJson = input.taxRulesJson
 
   db.update(zones)
     .set(patch)
