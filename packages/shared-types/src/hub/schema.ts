@@ -126,6 +126,7 @@ export const zones = sqliteTable('zones', {
     .references(() => locations.id),
   name: text('name').notNull(),
   sortOrder: integer('sort_order').notNull().default(0),
+  taxRulesJson: text('tax_rules_json').notNull().default('{}'),
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
   updatedAt: text('updated_at')
     .notNull()

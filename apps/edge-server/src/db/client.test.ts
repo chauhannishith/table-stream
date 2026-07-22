@@ -25,7 +25,7 @@ describe('createHubDb', () => {
       data_dir: dataDir,
     })
 
-    expect(getLatestSchemaVersion(db)).toBe('0003_submit_kds.sql')
+    expect(getLatestSchemaVersion(db)).toBe('0004_zone_tax_rules.sql')
 
     seedHubFromConfig(db, {
       ...testHubConfig,
