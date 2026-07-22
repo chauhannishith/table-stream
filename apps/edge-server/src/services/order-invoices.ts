@@ -9,6 +9,7 @@ import type {
   OrderLineTagSnapshot,
 } from '../lib/snapshots.js'
 import { getBusinessProfileSnapshot } from '../repositories/business-profile.js'
+import { ensureBusinessProfileCache } from './business-profile-cache.js'
 import { nextInvoiceNumber } from '../repositories/invoice-counters.js'
 import {
   createInvoice,
@@ -186,7 +187,7 @@ function toInvoiceDto(row: InvoiceRow) {
  * Issue a local invoice for a paid order with frozen line/tax/tender snapshots.
  * @throws {AppError} FORBIDDEN when hub is SUSPENDED; NOT_FOUND; CONFLICT; VALIDATION_ERROR
  */
-export function issueOrderInvoice(
+export async function issueOrderInvoice(
   db: HubDb,
   config: HubConfig,
   locationId: string,
@@ -194,6 +195,8 @@ export function issueOrderInvoice(
   input: IssueInvoiceInput = {},
 ) {
   assertHubWritable(db, locationId)
+
+  await ensureBusinessProfileCache(db, config)
 
   const order = getOrderById(db, locationId, orderId)
   if (!order) {

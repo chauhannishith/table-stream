@@ -6,12 +6,15 @@ import {
   getLocationById,
   updateLocationLicenseStatus,
 } from '../repositories/locations.js'
+import type { BusinessProfilePayload } from './business-profile-cache.js'
+import { parseBusinessProfilePayload } from '../repositories/business-profile.js'
 
 export type EntitlementSnapshot = {
   enabled: boolean
   subscriptionStatus: string
   currentPeriodEnd: string | null
   source: 'env' | 'control_plane'
+  businessProfile?: BusinessProfilePayload | null
 }
 
 type FetchLike = typeof fetch
@@ -84,6 +87,7 @@ export async function fetchEntitlementFromControlPlane(
     enabled?: boolean
     subscription_status?: string
     current_period_end?: string | null
+    business_profile?: unknown
   }
 
   return {
@@ -91,6 +95,7 @@ export async function fetchEntitlementFromControlPlane(
     subscriptionStatus: body.subscription_status ?? 'SUSPENDED',
     currentPeriodEnd: body.current_period_end ?? null,
     source: 'control_plane',
+    businessProfile: parseBusinessProfilePayload(body.business_profile),
   }
 }
 
@@ -152,6 +157,11 @@ export async function runLicenseCheck(
     licenseLastCheckedAt: checkedAt,
     suspendedAt,
   })
+
+  const { refreshBusinessProfileFromEntitlement } = await import(
+    './business-profile-cache.js'
+  )
+  refreshBusinessProfileFromEntitlement(db, config, active, entitlement, now)
 
   return { hub_status: hubStatus, entitlement }
 }
