@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { locations } from '@table-stream/shared-types/hub'
 import type { HubDb } from '../db/client.js'
+import { nowSqliteTimestamp } from '../lib/timestamps.js'
 
 export type LocationRow = typeof locations.$inferSelect
 
@@ -51,4 +52,29 @@ export function upsertLocation(
     throw new Error(`Location upsert failed for ${input.id}`)
   }
   return row
+}
+
+export function updateLocationLicenseStatus(
+  db: HubDb,
+  locationId: string,
+  input: {
+    hubStatus: 'ACTIVE' | 'SUSPENDED'
+    licenseLastCheckedAt: string
+    suspendedAt?: string | null
+  },
+): LocationRow | null {
+  const existing = getLocationById(db, locationId)
+  if (!existing) return null
+
+  db.update(locations)
+    .set({
+      hubStatus: input.hubStatus,
+      licenseLastCheckedAt: input.licenseLastCheckedAt,
+      suspendedAt: input.suspendedAt ?? null,
+      updatedAt: nowSqliteTimestamp(),
+    })
+    .where(eq(locations.id, locationId))
+    .run()
+
+  return getLocationById(db, locationId) ?? null
 }
