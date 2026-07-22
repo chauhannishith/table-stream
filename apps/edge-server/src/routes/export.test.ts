@@ -238,7 +238,80 @@ describe('GET /v1/export/full', () => {
     expect(body.order_lines.every((l: { order_id: string }) => l.order_id === paidOrderId)).toBe(
       true,
     )
+    expect(body.invoices.every((i: { order_id: string }) => i.order_id === paidOrderId)).toBe(
+      true,
+    )
     expect(body.daily_totals[0].order_count).toBe(1)
+
+    await app.close()
+  })
+
+  it('excludes invoices not tied to PAID orders', async () => {
+    const app = await createTestApp()
+    const locationId = app.hubConfig.location_id
+
+    setBillingConfig(app.hubDb, locationId, {
+      priceTaxMode: 'EXCLUSIVE',
+      taxRules: { cgst: 2.5, sgst: 2.5 },
+    })
+
+    const zone = createZoneEntry(app.hubDb, locationId, { name: 'Counter' })
+    const category = createCategory(app.hubDb, locationId, { name: 'Mains' })
+    const item = createMenuItemEntry(app.hubDb, locationId, {
+      categoryId: category.id,
+      name: 'Orphan Invoice Item',
+      basePriceCents: 250,
+    })
+
+    const draftRes = await app.inject({
+      method: 'POST',
+      url: '/v1/orders',
+      payload: {
+        order_type: 'TAKEAWAY',
+        zone_id: zone.id,
+        customer_name: 'Draft',
+      },
+    })
+    const draftOrderId = draftRes.json().order.id
+
+    const { createPayment } = await import('../repositories/payments.js')
+    const payment = createPayment(app.hubDb, {
+      orderId: draftOrderId,
+      amountCents: 250,
+      tenderType: 'CASH',
+    })
+
+    const { createInvoice } = await import('../repositories/invoices.js')
+    createInvoice(app.hubDb, {
+      id: 'inv_orphan',
+      locationId,
+      orderId: draftOrderId,
+      paymentId: payment.id,
+      invoiceNumber: 'INV-ORPHAN',
+      issuedAt: '2026-07-01 12:00:00',
+      subtotalCents: 250,
+      taxCents: 0,
+      discountCents: 0,
+      tipCents: 0,
+      totalCents: 250,
+      tenderSummaryJson: '{}',
+      lineItemsJson: '[]',
+      cashierName: 'Counter',
+      tokenNumber: '',
+      businessSnapshotJson: '{}',
+      taxBreakdownJson: '{}',
+      metadataJson: '{}',
+      documentPath: '/tmp/orphan.pdf',
+      contentHash: 'abc',
+    })
+
+    const paidOrderId = await createPaidTakeawayOrder(app, locationId, item.id)
+
+    const res = await app.inject({ method: 'GET', url: '/v1/export/full' })
+    expect(res.statusCode).toBe(200)
+    const invoices = res.json().invoices as { order_id: string; invoice_number: string }[]
+    expect(invoices.map((i) => i.order_id)).toEqual([paidOrderId])
+    expect(invoices.some((i) => i.invoice_number === 'INV-ORPHAN')).toBe(false)
 
     await app.close()
   })

@@ -2,7 +2,7 @@ import type { HubConfig } from '../config.js'
 import type { HubDb } from '../db/client.js'
 import { getEffectiveHubStatus } from '../lib/hub-guard.js'
 import { nowSqliteTimestamp } from '../lib/timestamps.js'
-import { listInvoicesForLocation } from '../repositories/invoices.js'
+import { listInvoicesByOrderIds } from '../repositories/invoices.js'
 import { listMenuItems } from '../repositories/menu-items.js'
 import { listOrderLinesByOrderIds } from '../repositories/order-lines.js'
 import { listOrders } from '../repositories/orders.js'
@@ -36,7 +36,7 @@ type DailyTotalRow = {
   total_cents: number
 }
 
-function toInvoiceExportRow(row: ReturnType<typeof listInvoicesForLocation>[number]) {
+function toInvoiceExportRow(row: ReturnType<typeof listInvoicesByOrderIds>[number]) {
   return {
     id: row.id,
     order_id: row.orderId,
@@ -176,7 +176,9 @@ export function buildFullHubExport(
     location_id: locationId,
     hub_id: config.hub_id,
     hub_status: getEffectiveHubStatus(db, locationId),
-    invoices: listInvoicesForLocation(db, locationId).map(toInvoiceExportRow),
+    invoices: listInvoicesByOrderIds(db, locationId, orderIds).map(
+      toInvoiceExportRow,
+    ),
     orders,
     order_lines: listOrderLinesByOrderIds(db, orderIds).map(toOrderLineExportRow),
     payments: listPaymentsByOrderIds(db, orderIds).map(toPaymentExportRow),
