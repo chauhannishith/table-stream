@@ -1,4 +1,4 @@
-import { and, asc, eq } from 'drizzle-orm'
+import { and, asc, eq, inArray } from 'drizzle-orm'
 import { payments } from '@table-stream/shared-types/hub'
 import type { PaymentStatus, TenderType } from '@table-stream/shared-types/domain'
 import type { HubDb } from '../db/client.js'
@@ -20,6 +20,20 @@ export function listPaymentsByOrder(db: HubDb, orderId: string): PaymentRow[] {
     .select()
     .from(payments)
     .where(eq(payments.orderId, orderId))
+    .orderBy(asc(payments.createdAt))
+    .all()
+}
+
+/** List payments for many orders (archive/export). */
+export function listPaymentsByOrderIds(
+  db: HubDb,
+  orderIds: string[],
+): PaymentRow[] {
+  if (orderIds.length === 0) return []
+  return db
+    .select()
+    .from(payments)
+    .where(inArray(payments.orderId, orderIds))
     .orderBy(asc(payments.createdAt))
     .all()
 }

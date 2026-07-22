@@ -1,9 +1,42 @@
-import { and, eq } from 'drizzle-orm'
+import { and, desc, eq, inArray } from 'drizzle-orm'
 import { invoices } from '@table-stream/shared-types/hub'
 import type { InvoiceStatus } from '@table-stream/shared-types/domain'
 import type { HubDb } from '../db/client.js'
 
 export type InvoiceRow = typeof invoices.$inferSelect
+
+/** List all invoices for a location (archive/export), newest first. */
+export function listInvoicesForLocation(
+  db: HubDb,
+  locationId: string,
+): InvoiceRow[] {
+  return db
+    .select()
+    .from(invoices)
+    .where(eq(invoices.locationId, locationId))
+    .orderBy(desc(invoices.issuedAt))
+    .all()
+}
+
+/** List invoices for many orders (archive/export), newest first. */
+export function listInvoicesByOrderIds(
+  db: HubDb,
+  locationId: string,
+  orderIds: string[],
+): InvoiceRow[] {
+  if (orderIds.length === 0) return []
+  return db
+    .select()
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.locationId, locationId),
+        inArray(invoices.orderId, orderIds),
+      ),
+    )
+    .orderBy(desc(invoices.issuedAt))
+    .all()
+}
 
 export type CreateInvoiceInput = {
   id: string
