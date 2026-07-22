@@ -370,6 +370,21 @@ PATCH  /v1/menu/modifier-options/:id
 
 ---
 
+### Phase E11 — Zone-based tax rates
+
+Tax rates are configured **per zone** (same JSON shape as location `tax_rules_json`). Operators may set identical rates on every zone, or different rates (e.g. outdoor vs AC, bar vs dining). Empty/missing zone rules inherit `location_billing_config.tax_rules_json`.
+
+| Step | PR scope | Deliverables | Tests |
+|------|----------|--------------|-------|
+| **E11.1** | Schema | `zones.tax_rules_json` + migration; Drizzle + seed defaults | Migration applies; existing zones inherit location |
+| **E11.2** | Zones API | Create/update/list expose `tax_rules`; validate component map | CRUD round-trip |
+| **E11.3** | Billing resolve | Line/bill tax from `orders.zone_id` → zone rules → location fallback | Different zones → different tax on bill |
+| **E11.4** | Invoice breakdown | Snapshot applied rules; `tax_breakdown` by component; aggregate by combined rate when needed | Invoice shows rate totals (e.g. 5% vs 18% across orders) |
+
+**Out of scope for E11:** per-item / category tax classes (alcohol vs food on the same check). Zone tax applies to the whole order via `orders.zone_id`.
+
+---
+
 ## 7. Suggested PR sequence (first 10 PRs)
 
 Start here — each is independently testable:
@@ -415,4 +430,5 @@ Kitchen submit (E5), auth (E7), and Redis (E8) intentionally come **after** a ta
 
 | Date | Change |
 |------|--------|
+| 2026-07-22 | Phase E11 — zone-based tax rates (after E10 complete) |
 | 2026-07-03 | Initial edge-server phased roadmap |

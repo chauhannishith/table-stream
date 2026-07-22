@@ -402,25 +402,26 @@ Local cache of cloud-managed business details. Refreshed on hub startup, periodi
 
 **Auth model:** Staff PIN login via hub API on LAN only. Device token + staff session required for writes. Hub is not exposed to the public internet for device traffic.
 
-#### `location_billing_config` (admin setup — tax, service charge, tips)
+#### `location_billing_config` (admin setup — tax defaults, service charge, tips)
 
 | Column | Type | Notes |
 |---|---|---|
 | `location_id` | TEXT PK | |
-| `tax_rules_json` | JSON | rates + components — see §5.14 |
-| `price_tax_mode` | TEXT | `INCLUSIVE` \| `EXCLUSIVE` — how menu prices are entered in setup |
+| `tax_rules_json` | JSON | **default** rates + components — used when a zone has no override; see §5.14 |
+| `price_tax_mode` | TEXT | `INCLUSIVE` \| `EXCLUSIVE` — how menu prices are entered in setup (location-wide) |
 | `service_charge_rules_json` | JSON | e.g. `{ "enabled": true, "percent": 10, "label": "Service charge" }` |
 | `tip_quick_actions_json` | JSON | two presets: `[{ "type": "percent", "value": 10 }, { "type": "fixed_cents", "value": 500 }]` |
 | `updated_at` | TIMESTAMPTZ | |
 
-#### `zones` (setup — customizable names)
+#### `zones` (setup — customizable names + tax)
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | TEXT PK | |
 | `location_id` | TEXT FK | |
-| `name` | TEXT | operator-defined, e.g. "Terrace", "VIP", "Bar" |
+| `name` | TEXT | operator-defined, e.g. "Terrace", "VIP", "Bar", "Takeaway" |
 | `sort_order` | INT | display order in setup and waiter filter |
+| `tax_rules_json` | JSON | per-zone rates — same shape as location `tax_rules_json` (e.g. `{ "cgst": 2.5, "sgst": 2.5 }` or `{ "gst": 18 }`). Empty `{}` → inherit location defaults. Operators may copy the same rates to every zone or set different ones. |
 | `is_active` | BOOL | soft-disable without deleting price rows |
 | `updated_at` | TIMESTAMPTZ | |
 
@@ -430,7 +431,7 @@ Local cache of cloud-managed business details. Refreshed on hub startup, periodi
 |---|---|---|
 | `id` | TEXT PK | |
 | `location_id` | TEXT FK | |
-| `zone_id` | TEXT FK | drives menu pricing for dine-in orders at this table |
+| `zone_id` | TEXT FK | drives **menu pricing** and **tax rates** for dine-in orders at this table |
 | `label` | TEXT | e.g. "T12" |
 | `capacity` | INT | |
 | `pos_x` | INT nullable | floor-plan coordinates for waiter/counter views |
@@ -465,7 +466,7 @@ See **menu catalog** tables (`menu_categories`, `menu_tags`, `modifier_groups`, 
 
 **PK:** `(menu_item_id, zone_id)`
 
-**Pricing rule:** at order time, resolve entered price from `menu_item_zone_prices` or `base_price_cents`, then derive pre-tax, tax, and line total per `price_tax_mode` (§5.14). Snapshot all three onto `order_lines` — **never recalculate retroactively** when catalog prices change later.
+**Pricing rule:** at order time, resolve entered price from `menu_item_zone_prices` or `base_price_cents`, then derive pre-tax, tax, and line total per `price_tax_mode` (§5.14) using the order zone’s tax rules (see zone tax below). Snapshot all three onto `order_lines` — **never recalculate retroactively** when catalog prices change later.
 
 #### `menu_categories`
 
@@ -1288,7 +1289,7 @@ DRAFT ──submit──► QUEUED ──kitchen start──► IN_PROGRESS ─�
 
 1. Review line items (all rounds, zone-priced snapshot)
 2. Apply **discount** (optional) — `PERCENT` (e.g. 15%) or `FIXED` (e.g. ₹50 / 500 cents)
-3. Apply **tax** and **service charge** from admin `location_billing_config`
+3. Apply **tax** from the order’s **zone** tax rules (fallback: location defaults) + **service charge** from `location_billing_config`
 4. Enter **tip** — custom amount **or** two quick-action buttons (admin-configured: % or fixed value each)
 5. **Generate bill** → snapshot totals onto order + create local `invoices` row
 6. Record **payment** — manually select tender: `CASH` \| `CARD` \| `OTHER`
@@ -1313,12 +1314,25 @@ amount        = entered_price   (= pre_tax + tax)
 
 **Invoice and UI always show all three** — price (pre-tax), tax, amount (price + tax) — regardless of entry mode. Waiter menu may show entered price; bill/invoice shows the breakdown.
 
+**Zone-based tax rates:**
+
+- Each zone has `tax_rules_json` with the same shape as location defaults (e.g. `{ "cgst": 2.5, "sgst": 2.5 }` → 5% combined, or `{ "gst": 18 }` → 18%).
+- Resolution: `orders.zone_id` → `zones.tax_rules_json` if non-empty → else `location_billing_config.tax_rules_json`.
+- Operators may set the **same** rates on every zone (no practical difference from location-only tax) or **different** rates per seating area / takeaway counter.
+- A single order uses **one** zone, so one rate set applies to that check. Per-item tax classes (e.g. alcohol 18% + food 5% on the same bill) are **post-MVP**.
+
+**Invoice tax totals:**
+
+- `tax_breakdown_json` stores component amounts for the applied zone rules (e.g. `{ "cgst": …, "sgst": … }` or `{ "gst": … }`).
+- Reporting / export should be able to group collected tax by **combined rate** (e.g. total at 5%, total at 18%) across invoices when zones differ.
+
 **Admin-customizable billing setup:**
 
 | Setting | Example |
 |---|---|
-| `price_tax_mode` | `INCLUSIVE` or `EXCLUSIVE` |
-| Tax rules | `{ "cgst": 2.5, "sgst": 2.5 }` — combined rate used for inclusive split |
+| `price_tax_mode` | `INCLUSIVE` or `EXCLUSIVE` (location-wide) |
+| Location tax rules | Default `{ "cgst": 2.5, "sgst": 2.5 }` — fallback when zone rules empty |
+| Zone tax rules | Per zone; copy defaults or override (outdoor / AC / bar / takeaway) |
 | Service charge | percent + label; on/off per location |
 | Tip quick actions | two presets: e.g. 10% and ₹100 fixed |
 | Discount caps | max percent requiring admin PIN — TBD |
@@ -1328,7 +1342,7 @@ amount        = entered_price   (= pre_tax + tax)
 ```
 subtotal (sum of line snapshots)
 → apply discount → discounted subtotal
-→ apply tax on discounted subtotal
+→ apply tax on discounted subtotal (zone rates)
 → add service charge
 → add tip
 → total
@@ -1340,7 +1354,7 @@ subtotal (sum of line snapshots)
 - Partial payments / split tender
 - Integrated card terminal / payment webhooks (Stripe, Square)
 - Auto card capture when online
-
+- Per-item / category tax classes (alcohol vs food on one check)
 ### 5.15 Printing (ordering · kitchen · collection)
 
 Printing is available at **every service stage**. Each stage has its own template, printer role, and on/off toggle in `location_print_config`. All prints are hub-local only.
@@ -1822,6 +1836,7 @@ table-stream/
 | Date | Change |
 |---|---|
 | 2026-07-02 | Initial planning doc created from system context |
+| 2026-07-22 | Zone-based tax rates (`zones.tax_rules_json`); location tax as fallback; item tax classes post-MVP |
 | 2026-07-02 | Invoices constrained to local-only storage; cloud sync scoped to aggregate signals |
 | 2026-07-02 | Added Module 4: kitchen, customer, waiter, counter views; zones; separate tokens; zone pricing |
 | 2026-07-02 | Staff/PIN auth, order lifecycle (draft/submit/add-on), table ops, billing, printing; post-MVP scope |
