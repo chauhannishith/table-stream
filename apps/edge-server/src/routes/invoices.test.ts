@@ -83,6 +83,61 @@ describe('invoice routes', () => {
     expect(invoice.document_path).toMatch(
       new RegExp(`/invoices/${locationId}/\\d{4}/\\d{2}/${invoice.id}\\.pdf$`),
     )
+    expect(invoice.business_snapshot.legal_name).toBe('Unknown Business')
+
+    await app.close()
+  })
+
+  it('POST /v1/orders/:id/invoice uses cached business profile on header', async () => {
+    const app = await createTestApp()
+    const locationId = app.hubConfig.location_id
+
+    const { upsertBusinessProfileCache } = await import(
+      '../repositories/business-profile.js'
+    )
+    upsertBusinessProfileCache(app.hubDb, {
+      orgId: app.hubConfig.org_id,
+      legalName: 'Invoice Header Cafe LLP',
+      tradeName: 'Header Cafe',
+      gstNumber: '29HEADER1234F1Z5',
+      addressLinesJson: JSON.stringify({ city: 'Delhi' }),
+      phone: '+91-8888888888',
+      email: 'billing@header.test',
+      logoPath: null,
+      fetchedAt: '2026-07-01 12:00:00',
+      expiresAt: '2099-01-01 00:00:00',
+    })
+
+    setBillingConfig(app.hubDb, locationId, {
+      priceTaxMode: 'EXCLUSIVE',
+      taxRules: { cgst: 2.5, sgst: 2.5 },
+    })
+
+    const category = createCategory(app.hubDb, locationId, { name: 'Mains' })
+    const item = createMenuItemEntry(app.hubDb, locationId, {
+      categoryId: category.id,
+      name: 'Paneer',
+      basePriceCents: 800,
+    })
+
+    const orderId = await createPaidTakeawayOrder(app, locationId, item.id)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/v1/orders/${orderId}/invoice`,
+      payload: {},
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json().invoice.business_snapshot).toEqual({
+      legal_name: 'Invoice Header Cafe LLP',
+      trade_name: 'Header Cafe',
+      gst_number: '29HEADER1234F1Z5',
+      address_lines: { city: 'Delhi' },
+      phone: '+91-8888888888',
+      email: 'billing@header.test',
+      logo_path: null,
+    })
 
     await app.close()
   })
