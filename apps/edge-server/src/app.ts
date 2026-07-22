@@ -26,6 +26,7 @@ import { orderBillingRoutes } from './routes/order-billing.js'
 import { invoiceRoutes } from './routes/invoices.js'
 import { deviceRoutes } from './routes/devices.js'
 import { deviceAuthPlugin } from './plugins/device-auth.js'
+import { hubWriteGuardPlugin } from './plugins/hub-write-guard.js'
 import { staffAuthPlugin } from './plugins/staff-auth.js'
 import { authRoutes } from './routes/auth.js'
 
@@ -48,6 +49,7 @@ export async function buildApp(deps: AppDeps) {
   app.decorate('redis', deps.redis)
 
   // Apply on the root instance so hooks cover all routes (avoid Fastify encapsulation).
+  await hubWriteGuardPlugin(app, {})
   await deviceAuthPlugin(app, {})
   await staffAuthPlugin(app, {})
 
