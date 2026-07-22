@@ -125,14 +125,14 @@ function toMenuItemExportRow(row: ReturnType<typeof listMenuItems>[number]) {
   }
 }
 
-/** Derive per-calendar-day totals from closed/paid orders. */
+/** Derive per-calendar-day totals from PAID orders only. */
 export function buildDailyTotals(
   orders: ReturnType<typeof toOrderExportRow>[],
 ): DailyTotalRow[] {
   const byDate = new Map<string, DailyTotalRow>()
 
   for (const order of orders) {
-    if (order.status === 'VOID') continue
+    if (order.status !== 'PAID') continue
     const day = (order.closed_at ?? order.opened_at).slice(0, 10)
     const existing = byDate.get(day) ?? {
       date: day,
@@ -157,14 +157,15 @@ export function buildDailyTotals(
 
 /**
  * Build a local JSON archive of hub data for admin download / suspended mode.
- * Omits secrets (staff PIN hashes, device tokens, customer contact).
+ * Includes PAID orders only (and their lines/payments). Omits secrets
+ * (staff PIN hashes, device tokens, customer contact).
  */
 export function buildFullHubExport(
   db: HubDb,
   config: HubConfig,
 ): HubExportArchive {
   const locationId = config.location_id
-  const orderRows = listOrders(db, locationId)
+  const orderRows = listOrders(db, locationId, { status: 'PAID' })
   const orderIds = orderRows.map((row) => row.id)
   const orders = orderRows.map(toOrderExportRow)
 

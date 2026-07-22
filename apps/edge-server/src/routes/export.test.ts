@@ -55,7 +55,7 @@ async function createPaidTakeawayOrder(
 }
 
 describe('buildDailyTotals', () => {
-  it('aggregates paid orders by calendar day and skips VOID', () => {
+  it('aggregates PAID orders by calendar day and skips incomplete/VOID', () => {
     const totals = buildDailyTotals([
       {
         id: 'o1',
@@ -90,6 +90,23 @@ describe('buildDailyTotals', () => {
         discount_cents: 0,
         tip_cents: 0,
         total_cents: 525,
+      },
+      {
+        id: 'o-draft',
+        order_type: 'TAKEAWAY',
+        status: 'DRAFT',
+        zone_id: 'z1',
+        table_id: null,
+        customer_name: null,
+        server_id: null,
+        token_number: null,
+        opened_at: '2026-07-01 13:00:00',
+        closed_at: null,
+        subtotal_cents: 300,
+        tax_cents: 0,
+        discount_cents: 0,
+        tip_cents: 0,
+        total_cents: 300,
       },
       {
         id: 'o3',
@@ -172,6 +189,55 @@ describe('GET /v1/export/full', () => {
       true,
     )
     expect(body.daily_totals).toHaveLength(1)
+    expect(body.daily_totals[0].order_count).toBe(1)
+
+    await app.close()
+  })
+
+  it('excludes DRAFT/OPEN orders from the archive', async () => {
+    const app = await createTestApp()
+    const locationId = app.hubConfig.location_id
+
+    setBillingConfig(app.hubDb, locationId, {
+      priceTaxMode: 'EXCLUSIVE',
+      taxRules: { cgst: 2.5, sgst: 2.5 },
+    })
+
+    const zone = createZoneEntry(app.hubDb, locationId, { name: 'Counter' })
+    const category = createCategory(app.hubDb, locationId, { name: 'Mains' })
+    const item = createMenuItemEntry(app.hubDb, locationId, {
+      categoryId: category.id,
+      name: 'Open Item',
+      basePriceCents: 400,
+    })
+
+    const draftRes = await app.inject({
+      method: 'POST',
+      url: '/v1/orders',
+      payload: {
+        order_type: 'TAKEAWAY',
+        zone_id: zone.id,
+        customer_name: 'Still Open',
+      },
+    })
+    expect(draftRes.statusCode).toBe(201)
+    const draftOrderId = draftRes.json().order.id
+
+    await app.inject({
+      method: 'POST',
+      url: `/v1/orders/${draftOrderId}/lines`,
+      payload: { menu_item_id: item.id, quantity: 1 },
+    })
+
+    const paidOrderId = await createPaidTakeawayOrder(app, locationId, item.id)
+
+    const res = await app.inject({ method: 'GET', url: '/v1/export/full' })
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.orders.map((o: { id: string }) => o.id)).toEqual([paidOrderId])
+    expect(body.order_lines.every((l: { order_id: string }) => l.order_id === paidOrderId)).toBe(
+      true,
+    )
     expect(body.daily_totals[0].order_count).toBe(1)
 
     await app.close()
