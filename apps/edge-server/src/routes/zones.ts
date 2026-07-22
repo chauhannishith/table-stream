@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { AppError } from '../lib/errors.js'
 import { pickDefined } from '../lib/pick-defined.js'
 import { trimOptionalNonEmpty } from '../lib/validate-patch.js'
+import { parseTaxRulesMap } from '../services/billing.js'
 import {
   createZoneEntry,
   listZonesForLocation,
@@ -24,17 +25,24 @@ export const zoneRoutes: FastifyPluginAsync = async (app) => {
       name?: string
       sort_order?: number
       is_active?: boolean
+      tax_rules?: unknown
     }
 
     if (!body?.name?.trim()) {
       throw new AppError('VALIDATION_ERROR', 'name is required', 400)
     }
 
+    const taxRulesJson =
+      body.tax_rules === undefined
+        ? undefined
+        : JSON.stringify(parseTaxRulesMap(body.tax_rules))
+
     const zone = createZoneEntry(app.hubDb, app.hubConfig.location_id, {
       name: body.name.trim(),
       ...pickDefined({
         sortOrder: body.sort_order,
         isActive: body.is_active,
+        taxRulesJson,
       }),
     })
 
@@ -47,7 +55,13 @@ export const zoneRoutes: FastifyPluginAsync = async (app) => {
       name?: string
       sort_order?: number
       is_active?: boolean
+      tax_rules?: unknown
     }
+
+    const taxRulesJson =
+      body?.tax_rules === undefined
+        ? undefined
+        : JSON.stringify(parseTaxRulesMap(body.tax_rules))
 
     const zone = updateZoneEntry(
       app.hubDb,
@@ -57,6 +71,7 @@ export const zoneRoutes: FastifyPluginAsync = async (app) => {
         name: trimOptionalNonEmpty('name', body?.name),
         sortOrder: body?.sort_order,
         isActive: body?.is_active,
+        taxRulesJson,
       }),
     )
 
