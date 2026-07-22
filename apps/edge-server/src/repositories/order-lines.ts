@@ -1,4 +1,4 @@
-import { and, asc, eq, max } from 'drizzle-orm'
+import { and, asc, eq, inArray, max } from 'drizzle-orm'
 import { orderLines } from '@table-stream/shared-types/hub'
 import type { HubDb } from '../db/client.js'
 import { newId } from '../lib/ids.js'
@@ -11,6 +11,20 @@ export function listOrderLines(db: HubDb, orderId: string): OrderLineRow[] {
     .select()
     .from(orderLines)
     .where(eq(orderLines.orderId, orderId))
+    .orderBy(asc(orderLines.id))
+    .all()
+}
+
+/** List order lines for many orders (archive/export). */
+export function listOrderLinesByOrderIds(
+  db: HubDb,
+  orderIds: string[],
+): OrderLineRow[] {
+  if (orderIds.length === 0) return []
+  return db
+    .select()
+    .from(orderLines)
+    .where(inArray(orderLines.orderId, orderIds))
     .orderBy(asc(orderLines.id))
     .all()
 }
