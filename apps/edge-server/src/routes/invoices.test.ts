@@ -6,6 +6,7 @@ import { createCategory, createMenuItemEntry } from '../services/menu-catalog.js
 import {
   createZoneEntry,
   setBillingConfig,
+  updateZoneEntry,
 } from '../services/floor-setup.js'
 
 async function createPaidTakeawayOrder(
@@ -218,6 +219,73 @@ describe('invoice routes', () => {
     expect(firstGet.statusCode).toBe(200)
     expect(secondGet.statusCode).toBe(200)
     expect(secondGet.json().invoice).toEqual(firstGet.json().invoice)
+
+    await app.close()
+  })
+
+  it('POST /v1/orders/:id/invoice keeps bill-time tax snapshot after zone tax changes', async () => {
+    const app = await createTestApp()
+    const locationId = app.hubConfig.location_id
+
+    setBillingConfig(app.hubDb, locationId, {
+      priceTaxMode: 'EXCLUSIVE',
+      taxRules: { cgst: 2.5, sgst: 2.5 },
+    })
+
+    const zone = createZoneEntry(app.hubDb, locationId, {
+      name: 'Patio',
+      taxRulesJson: JSON.stringify({ gst: 5 }),
+    })
+    const category = createCategory(app.hubDb, locationId, { name: 'Mains' })
+    const item = createMenuItemEntry(app.hubDb, locationId, {
+      categoryId: category.id,
+      name: 'Sizzler',
+      basePriceCents: 10000,
+    })
+
+    const orderRes = await app.inject({
+      method: 'POST',
+      url: '/v1/orders',
+      payload: {
+        order_type: 'TAKEAWAY',
+        zone_id: zone.id,
+        customer_name: 'Alex',
+      },
+    })
+    const orderId = orderRes.json().order.id
+
+    await app.inject({
+      method: 'POST',
+      url: `/v1/orders/${orderId}/lines`,
+      payload: { menu_item_id: item.id, quantity: 1 },
+    })
+    await app.inject({
+      method: 'POST',
+      url: `/v1/orders/${orderId}/bill`,
+      payload: {},
+    })
+
+    updateZoneEntry(app.hubDb, locationId, zone.id, {
+      taxRulesJson: JSON.stringify({ gst: 18 }),
+    })
+
+    await app.inject({
+      method: 'POST',
+      url: `/v1/orders/${orderId}/payments`,
+      payload: { tender_type: 'CASH' },
+    })
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/v1/orders/${orderId}/invoice`,
+      payload: {},
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json().invoice.tax_cents).toBe(500)
+    expect(res.json().invoice.tax_breakdown).toEqual({ gst: 500 })
+    expect(res.json().invoice.applied_tax_rules).toEqual({ gst: 5 })
+    expect(res.json().invoice.combined_rate_percent).toBe(5)
 
     await app.close()
   })

@@ -63,6 +63,15 @@ function computeTaxSnapshot(
   locationId: string,
   order: NonNullable<ReturnType<typeof getOrderById>>,
 ): InvoiceTaxSnapshot {
+  if (
+    typeof order.billTaxSnapshotJson === 'string' &&
+    order.billTaxSnapshotJson !== '{}'
+  ) {
+    return parseInvoiceTaxSnapshot(
+      JSON.parse(order.billTaxSnapshotJson) as unknown,
+    )
+  }
+
   const lines = listOrderLines(db, order.id)
   const billing = loadBillingConfigSnapshot(db, locationId, order.zoneId)
   const configRow = getLocationBillingConfig(db, locationId)

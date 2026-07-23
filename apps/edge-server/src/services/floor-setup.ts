@@ -46,6 +46,7 @@ import {
   toTableDto,
   toZoneDto,
 } from './floor-setup-dto.js'
+import { parseTaxRulesMap } from './billing.js'
 
 export function listZonesForLocation(
   db: HubDb,
@@ -174,7 +175,7 @@ export function setBillingConfig(
 ) {
   const patch: UpsertLocationBillingConfigInput = {}
   if (input.taxRules !== undefined) {
-    patch.taxRulesJson = JSON.stringify(input.taxRules)
+    patch.taxRulesJson = JSON.stringify(parseTaxRulesMap(input.taxRules))
   }
   if (input.priceTaxMode !== undefined) {
     patch.priceTaxMode = input.priceTaxMode

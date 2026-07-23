@@ -30,17 +30,32 @@ describe('location billing routes', () => {
       url: '/v1/location/billing-config',
       payload: {
         price_tax_mode: 'INCLUSIVE',
-        tax_rules: { gst: { rate_bps: 500 } },
+        tax_rules: { cgst: 2.5, sgst: 2.5 },
         tip_quick_actions: [10, 15],
       },
     })
 
     expect(res.statusCode).toBe(200)
     expect(res.json().billing_config.price_tax_mode).toBe('INCLUSIVE')
-    expect(res.json().billing_config.tax_rules).toEqual({
-      gst: { rate_bps: 500 },
-    })
+    expect(res.json().billing_config.tax_rules).toEqual({ cgst: 2.5, sgst: 2.5 })
     expect(res.json().billing_config.tip_quick_actions).toEqual([10, 15])
+
+    await app.close()
+  })
+
+  it('PUT /v1/location/billing-config rejects nested tax_rules objects', async () => {
+    const app = await createTestApp()
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/v1/location/billing-config',
+      payload: {
+        tax_rules: { gst: { rate_bps: 500 } },
+      },
+    })
+
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error.code).toBe('VALIDATION_ERROR')
 
     await app.close()
   })
