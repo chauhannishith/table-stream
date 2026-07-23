@@ -136,6 +136,7 @@ export type FinalizeOrderBillInput = {
   subtotalCents: number
   taxCents: number
   totalCents: number
+  billTaxSnapshotJson: string
 }
 
 /** Persist locked bill totals and discount fields; sets order status to CHECK_PRINTED. */
@@ -158,6 +159,7 @@ export function finalizeOrderBill(
       subtotalCents: input.subtotalCents,
       taxCents: input.taxCents,
       totalCents: input.totalCents,
+      billTaxSnapshotJson: input.billTaxSnapshotJson,
       status: 'CHECK_PRINTED',
       version: existing.version + 1,
     })

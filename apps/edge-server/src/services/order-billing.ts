@@ -11,6 +11,7 @@ import {
   type OrderRow,
 } from '../repositories/orders.js'
 import {
+  buildInvoiceTaxSnapshot,
   computeBillPreview,
   loadBillingConfigSnapshot,
   parseServiceChargePercent,
@@ -100,7 +101,7 @@ function computeBillForOrder(
     resolved,
   )
 
-  return { totals, resolved }
+  return { totals, resolved, billing }
 }
 
 function assertBillableOrder(order: OrderRow, orderId: string): void {
@@ -156,7 +157,12 @@ export function finalizeOrderBill(
 
   assertBillableOrder(order, orderId)
 
-  const { totals, resolved } = computeBillForOrder(db, locationId, order, input)
+  const { totals, resolved, billing } = computeBillForOrder(
+    db,
+    locationId,
+    order,
+    input,
+  )
 
   const updated = persistOrderBill(db, locationId, orderId, {
     discountType: resolved.discountType ?? null,
@@ -167,6 +173,9 @@ export function finalizeOrderBill(
     subtotalCents: totals.subtotalCents,
     taxCents: totals.taxCents,
     totalCents: totals.totalCents,
+    billTaxSnapshotJson: JSON.stringify(
+      buildInvoiceTaxSnapshot(totals.taxBreakdown, billing.taxComponents),
+    ),
   })
 
   if (!updated) {
