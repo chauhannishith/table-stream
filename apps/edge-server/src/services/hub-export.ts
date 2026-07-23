@@ -8,6 +8,10 @@ import { listOrderLinesByOrderIds } from '../repositories/order-lines.js'
 import { listOrders } from '../repositories/orders.js'
 import { listPaymentsByOrderIds } from '../repositories/payments.js'
 import { listStaff } from '../repositories/staff.js'
+import {
+  aggregateTaxByCombinedRate,
+  parseInvoiceTaxSnapshot,
+} from './billing.js'
 import { toStaffDto } from './floor-setup-dto.js'
 
 export type HubExportArchive = {
@@ -24,6 +28,7 @@ export type HubExportArchive = {
   staff: ReturnType<typeof toStaffDto>[]
   menu_items: ReturnType<typeof toMenuItemExportRow>[]
   daily_totals: DailyTotalRow[]
+  tax_by_rate: ReturnType<typeof aggregateTaxByCombinedRate>
 }
 
 type DailyTotalRow = {
@@ -37,6 +42,9 @@ type DailyTotalRow = {
 }
 
 function toInvoiceExportRow(row: ReturnType<typeof listInvoicesByOrderIds>[number]) {
+  const taxSnapshot = parseInvoiceTaxSnapshot(
+    JSON.parse(row.taxBreakdownJson) as unknown,
+  )
   return {
     id: row.id,
     order_id: row.orderId,
@@ -58,7 +66,9 @@ function toInvoiceExportRow(row: ReturnType<typeof listInvoicesByOrderIds>[numbe
       string,
       unknown
     >,
-    tax_breakdown: JSON.parse(row.taxBreakdownJson) as Record<string, number>,
+    tax_breakdown: taxSnapshot.components,
+    applied_tax_rules: taxSnapshot.applied_tax_rules,
+    combined_rate_percent: taxSnapshot.combined_rate_percent,
     content_hash: row.contentHash,
   }
 }
@@ -168,6 +178,9 @@ export function buildFullHubExport(
   const orderRows = listOrders(db, locationId, { status: 'PAID' })
   const orderIds = orderRows.map((row) => row.id)
   const orders = orderRows.map(toOrderExportRow)
+  const invoices = listInvoicesByOrderIds(db, locationId, orderIds).map(
+    toInvoiceExportRow,
+  )
 
   return {
     format: 'json_archive_v1',
@@ -176,9 +189,7 @@ export function buildFullHubExport(
     location_id: locationId,
     hub_id: config.hub_id,
     hub_status: getEffectiveHubStatus(db, locationId),
-    invoices: listInvoicesByOrderIds(db, locationId, orderIds).map(
-      toInvoiceExportRow,
-    ),
+    invoices,
     orders,
     order_lines: listOrderLinesByOrderIds(db, orderIds).map(toOrderLineExportRow),
     payments: listPaymentsByOrderIds(db, orderIds).map(toPaymentExportRow),
@@ -187,5 +198,11 @@ export function buildFullHubExport(
       toMenuItemExportRow,
     ),
     daily_totals: buildDailyTotals(orders),
+    tax_by_rate: aggregateTaxByCombinedRate(
+      invoices.map((invoice) => ({
+        tax_cents: invoice.tax_cents,
+        combined_rate_percent: invoice.combined_rate_percent,
+      })),
+    ),
   }
 }
