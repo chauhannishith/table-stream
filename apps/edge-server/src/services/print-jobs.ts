@@ -15,6 +15,7 @@ import {
 } from '../repositories/print-jobs.js'
 import { getPrinterById, listPrinters } from '../repositories/printers.js'
 import { getPrintConfig } from './print-config.js'
+import { parseInvoiceTaxSnapshot } from './billing.js'
 import { toOrderLineDto } from './orders-dto.js'
 import { toPrintJobDto } from './print-jobs-dto.js'
 
@@ -127,7 +128,9 @@ function buildPrintPayload(
           tip_cents: invoice.tipCents,
           total_cents: invoice.totalCents,
         },
-        tax_breakdown: JSON.parse(invoice.taxBreakdownJson),
+        tax_breakdown: parseInvoiceTaxSnapshot(
+          JSON.parse(invoice.taxBreakdownJson),
+        ).components,
         cashier_name: invoice.cashierName,
       }
     }

@@ -123,6 +123,113 @@ export function loadBillingConfigSnapshot(
   }
 }
 
+export type InvoiceTaxSnapshot = {
+  /** Tax collected per component, in cents. */
+  components: Record<string, number>
+  /** Applied percent rates (zone → location resolve). */
+  applied_tax_rules: TaxComponentRates
+  /** Sum of applied component percents (e.g. 5 for cgst+sgst 2.5 each). */
+  combined_rate_percent: number
+}
+
+/** Combined percent from tax component rates (e.g. { cgst: 2.5, sgst: 2.5 } → 5). */
+export function combinedRatePercent(components: TaxComponentRates): number {
+  return Object.values(components).reduce((sum, pct) => sum + pct, 0)
+}
+
+/** Build frozen invoice tax snapshot for print/export. */
+export function buildInvoiceTaxSnapshot(
+  components: Record<string, number>,
+  appliedTaxRules: TaxComponentRates,
+): InvoiceTaxSnapshot {
+  return {
+    components,
+    applied_tax_rules: { ...appliedTaxRules },
+    combined_rate_percent: combinedRatePercent(appliedTaxRules),
+  }
+}
+
+/**
+ * Parse tax_breakdown_json — supports E11.4 snapshot shape and legacy flat component maps.
+ */
+export function parseInvoiceTaxSnapshot(raw: unknown): InvoiceTaxSnapshot {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return {
+      components: {},
+      applied_tax_rules: {},
+      combined_rate_percent: 0,
+    }
+  }
+
+  const obj = raw as Record<string, unknown>
+  if (
+    obj.components &&
+    typeof obj.components === 'object' &&
+    !Array.isArray(obj.components)
+  ) {
+    const components = obj.components as Record<string, number>
+    const applied =
+      obj.applied_tax_rules &&
+      typeof obj.applied_tax_rules === 'object' &&
+      !Array.isArray(obj.applied_tax_rules)
+        ? (obj.applied_tax_rules as TaxComponentRates)
+        : {}
+    const combined =
+      typeof obj.combined_rate_percent === 'number'
+        ? obj.combined_rate_percent
+        : combinedRatePercent(applied)
+    return {
+      components,
+      applied_tax_rules: applied,
+      combined_rate_percent: combined,
+    }
+  }
+
+  // Legacy: flat { cgst: cents, sgst: cents }
+  const components: Record<string, number> = {}
+  for (const [key, value] of Object.entries(obj)) {
+    if (typeof value === 'number') components[key] = value
+  }
+  return {
+    components,
+    applied_tax_rules: {},
+    combined_rate_percent: 0,
+  }
+}
+
+/** Aggregate invoice tax cents by combined rate percent (for export/reporting). */
+export function aggregateTaxByCombinedRate(
+  rows: Array<{
+    tax_cents: number
+    combined_rate_percent: number
+  }>,
+): Array<{
+  combined_rate_percent: number
+  tax_cents: number
+  invoice_count: number
+}> {
+  const byRate = new Map<
+    number,
+    { combined_rate_percent: number; tax_cents: number; invoice_count: number }
+  >()
+
+  for (const row of rows) {
+    const key = row.combined_rate_percent
+    const existing = byRate.get(key) ?? {
+      combined_rate_percent: key,
+      tax_cents: 0,
+      invoice_count: 0,
+    }
+    existing.tax_cents += row.tax_cents
+    existing.invoice_count += 1
+    byRate.set(key, existing)
+  }
+
+  return [...byRate.values()].sort(
+    (a, b) => a.combined_rate_percent - b.combined_rate_percent,
+  )
+}
+
 /** Compute per-line tax and total from snapshotted unit price and modifiers. */
 export function computeLineAmounts(input: {
   unitPriceCents: number
