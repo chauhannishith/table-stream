@@ -23,9 +23,12 @@ import { getOrderById } from '../repositories/orders.js'
 import { listPaymentsByOrder } from '../repositories/payments.js'
 import { getStaffById } from '../repositories/staff.js'
 import {
+  buildInvoiceTaxSnapshot,
   computeBillPreview,
   loadBillingConfigSnapshot,
+  parseInvoiceTaxSnapshot,
   parseServiceChargePercent,
+  type InvoiceTaxSnapshot,
 } from './billing.js'
 
 export type IssueInvoiceInput = {
@@ -55,11 +58,11 @@ function buildLineItemsSnapshot(db: HubDb, orderId: string) {
   }))
 }
 
-function computeTaxBreakdown(
+function computeTaxSnapshot(
   db: HubDb,
   locationId: string,
   order: NonNullable<ReturnType<typeof getOrderById>>,
-) {
+): InvoiceTaxSnapshot {
   const lines = listOrderLines(db, order.id)
   const billing = loadBillingConfigSnapshot(db, locationId, order.zoneId)
   const configRow = getLocationBillingConfig(db, locationId)
@@ -68,7 +71,7 @@ function computeTaxBreakdown(
     : {}
   const serviceChargePercent = parseServiceChargePercent(serviceChargeRules)
 
-  return computeBillPreview(
+  const preview = computeBillPreview(
     lines.map((line) => ({
       unitPriceCents: line.unitPriceCents,
       quantity: line.quantity,
@@ -83,7 +86,9 @@ function computeTaxBreakdown(
       discountValue: order.discountValue ?? undefined,
       tipCents: order.tipCents,
     },
-  ).taxBreakdown
+  )
+
+  return buildInvoiceTaxSnapshot(preview.taxBreakdown, billing.taxComponents)
 }
 
 function invoiceDocumentPath(
@@ -111,7 +116,7 @@ function canonicalInvoicePayload(input: {
   cashierName: string
   tokenNumber: string
   businessSnapshot: ReturnType<typeof getBusinessProfileSnapshot>
-  taxBreakdown: Record<string, number>
+  taxSnapshot: InvoiceTaxSnapshot
   metadata: Record<string, unknown>
 }) {
   return {
@@ -128,7 +133,9 @@ function canonicalInvoicePayload(input: {
     cashier_name: input.cashierName,
     token_number: input.tokenNumber,
     business_snapshot: input.businessSnapshot,
-    tax_breakdown: input.taxBreakdown,
+    tax_breakdown: input.taxSnapshot.components,
+    applied_tax_rules: input.taxSnapshot.applied_tax_rules,
+    combined_rate_percent: input.taxSnapshot.combined_rate_percent,
     metadata: input.metadata,
   }
 }
@@ -151,6 +158,9 @@ function resolveCashierName(
 }
 
 function toInvoiceDto(row: InvoiceRow) {
+  const taxSnapshot = parseInvoiceTaxSnapshot(
+    JSON.parse(row.taxBreakdownJson) as unknown,
+  )
   return {
     id: row.id,
     location_id: row.locationId,
@@ -176,7 +186,9 @@ function toInvoiceDto(row: InvoiceRow) {
       string,
       unknown
     >,
-    tax_breakdown: JSON.parse(row.taxBreakdownJson) as Record<string, number>,
+    tax_breakdown: taxSnapshot.components,
+    applied_tax_rules: taxSnapshot.applied_tax_rules,
+    combined_rate_percent: taxSnapshot.combined_rate_percent,
     metadata: JSON.parse(row.metadataJson) as Record<string, unknown>,
     document_path: row.documentPath,
     content_hash: row.contentHash,
@@ -238,7 +250,7 @@ export async function issueOrderInvoice(
     order.closedAt ?? new Date().toISOString().replace('T', ' ').slice(0, 19)
   const invoiceNumber = nextInvoiceNumber(db, locationId)
   const lineItems = buildLineItemsSnapshot(db, orderId)
-  const taxBreakdown = computeTaxBreakdown(db, locationId, order)
+  const taxSnapshot = computeTaxSnapshot(db, locationId, order)
   const businessSnapshot = getBusinessProfileSnapshot(db, config.org_id)
   const cashierName = resolveCashierName(db, locationId, order, input.cashierId)
   const tenderType = payment.tenderType?.toLowerCase() ?? 'other'
@@ -263,7 +275,7 @@ export async function issueOrderInvoice(
     cashierName,
     tokenNumber: order.tokenNumber ?? '',
     businessSnapshot,
-    taxBreakdown,
+    taxSnapshot,
     metadata,
   })
 
@@ -294,7 +306,7 @@ export async function issueOrderInvoice(
     cashierName,
     tokenNumber: order.tokenNumber ?? '',
     businessSnapshotJson: JSON.stringify(businessSnapshot),
-    taxBreakdownJson: JSON.stringify(taxBreakdown),
+    taxBreakdownJson: JSON.stringify(taxSnapshot),
     metadataJson: JSON.stringify(metadata),
     documentPath,
     contentHash,

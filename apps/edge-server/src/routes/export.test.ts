@@ -182,6 +182,12 @@ describe('GET /v1/export/full', () => {
     expect(body.payments).toHaveLength(1)
     expect(body.invoices).toHaveLength(1)
     expect(body.invoices[0].invoice_number).toBe('INV-00001')
+    expect(body.invoices[0].tax_breakdown).toEqual({ cgst: 25, sgst: 25 })
+    expect(body.invoices[0].applied_tax_rules).toEqual({ cgst: 2.5, sgst: 2.5 })
+    expect(body.invoices[0].combined_rate_percent).toBe(5)
+    expect(body.tax_by_rate).toEqual([
+      { combined_rate_percent: 5, tax_cents: 50, invoice_count: 1 },
+    ])
     expect(body.menu_items.some((row: { name: string }) => row.name === 'Export Curry')).toBe(
       true,
     )
@@ -190,6 +196,80 @@ describe('GET /v1/export/full', () => {
     )
     expect(body.daily_totals).toHaveLength(1)
     expect(body.daily_totals[0].order_count).toBe(1)
+
+    await app.close()
+  })
+
+  it('aggregates tax_by_rate across 5% and 18% zone invoices', async () => {
+    const app = await createTestApp()
+    const locationId = app.hubConfig.location_id
+
+    setBillingConfig(app.hubDb, locationId, {
+      priceTaxMode: 'EXCLUSIVE',
+      taxRules: { cgst: 2.5, sgst: 2.5 },
+    })
+
+    const outdoor = createZoneEntry(app.hubDb, locationId, {
+      name: 'Outdoor',
+      taxRulesJson: JSON.stringify({ gst: 5 }),
+    })
+    const bar = createZoneEntry(app.hubDb, locationId, {
+      name: 'Bar',
+      taxRulesJson: JSON.stringify({ gst: 18 }),
+    })
+
+    const category = createCategory(app.hubDb, locationId, { name: 'Mains' })
+    const item = createMenuItemEntry(app.hubDb, locationId, {
+      categoryId: category.id,
+      name: 'Tax Item',
+      basePriceCents: 10000,
+    })
+
+    async function payAndInvoice(zoneId: string) {
+      const orderRes = await app.inject({
+        method: 'POST',
+        url: '/v1/orders',
+        payload: {
+          order_type: 'TAKEAWAY',
+          zone_id: zoneId,
+          customer_name: 'Rate Guest',
+        },
+      })
+      const orderId = orderRes.json().order.id
+      await app.inject({
+        method: 'POST',
+        url: `/v1/orders/${orderId}/lines`,
+        payload: { menu_item_id: item.id, quantity: 1 },
+      })
+      await app.inject({
+        method: 'POST',
+        url: `/v1/orders/${orderId}/bill`,
+        payload: {},
+      })
+      await app.inject({
+        method: 'POST',
+        url: `/v1/orders/${orderId}/payments`,
+        payload: { tender_type: 'CASH' },
+      })
+      await app.inject({
+        method: 'POST',
+        url: `/v1/orders/${orderId}/invoice`,
+        payload: {},
+      })
+      return orderId
+    }
+
+    await payAndInvoice(outdoor.id)
+    await payAndInvoice(bar.id)
+
+    const res = await app.inject({ method: 'GET', url: '/v1/export/full' })
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.invoices).toHaveLength(2)
+    expect(body.tax_by_rate).toEqual([
+      { combined_rate_percent: 5, tax_cents: 500, invoice_count: 1 },
+      { combined_rate_percent: 18, tax_cents: 1800, invoice_count: 1 },
+    ])
 
     await app.close()
   })

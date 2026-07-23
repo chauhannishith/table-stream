@@ -84,6 +84,9 @@ describe('invoice routes', () => {
       new RegExp(`/invoices/${locationId}/\\d{4}/\\d{2}/${invoice.id}\\.pdf$`),
     )
     expect(invoice.business_snapshot.legal_name).toBe('Unknown Business')
+    expect(invoice.tax_breakdown).toEqual({ cgst: 25, sgst: 25 })
+    expect(invoice.applied_tax_rules).toEqual({ cgst: 2.5, sgst: 2.5 })
+    expect(invoice.combined_rate_percent).toBe(5)
 
     await app.close()
   })
