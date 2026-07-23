@@ -93,6 +93,67 @@ describe('order billing routes', () => {
     await app.close()
   })
 
+  it('applies zone tax_rules instead of location defaults on bill preview', async () => {
+    const app = await createTestApp()
+    const locationId = app.hubConfig.location_id
+
+    setBillingConfig(app.hubDb, locationId, {
+      priceTaxMode: 'EXCLUSIVE',
+      taxRules: { cgst: 2.5, sgst: 2.5 },
+    })
+
+    const outdoor = createZoneEntry(app.hubDb, locationId, {
+      name: 'Outdoor',
+      taxRulesJson: JSON.stringify({ gst: 5 }),
+    })
+    const bar = createZoneEntry(app.hubDb, locationId, {
+      name: 'Bar',
+      taxRulesJson: JSON.stringify({ gst: 18 }),
+    })
+
+    const category = createCategory(app.hubDb, locationId, { name: 'Mains' })
+    const item = createMenuItemEntry(app.hubDb, locationId, {
+      categoryId: category.id,
+      name: 'Burger',
+      basePriceCents: 10000,
+    })
+
+    async function previewForZone(zoneId: string) {
+      const orderRes = await app.inject({
+        method: 'POST',
+        url: '/v1/orders',
+        payload: {
+          order_type: 'TAKEAWAY',
+          zone_id: zoneId,
+          customer_name: 'Tax Guest',
+        },
+      })
+      const orderId = orderRes.json().order.id
+      await app.inject({
+        method: 'POST',
+        url: `/v1/orders/${orderId}/lines`,
+        payload: { menu_item_id: item.id, quantity: 1 },
+      })
+      return app.inject({
+        method: 'POST',
+        url: `/v1/orders/${orderId}/bill/preview`,
+        payload: {},
+      })
+    }
+
+    const outdoorPreview = await previewForZone(outdoor.id)
+    expect(outdoorPreview.statusCode).toBe(200)
+    expect(outdoorPreview.json().preview.tax_cents).toBe(500)
+    expect(outdoorPreview.json().preview.tax_breakdown).toEqual({ gst: 500 })
+
+    const barPreview = await previewForZone(bar.id)
+    expect(barPreview.statusCode).toBe(200)
+    expect(barPreview.json().preview.tax_cents).toBe(1800)
+    expect(barPreview.json().preview.tax_breakdown).toEqual({ gst: 1800 })
+
+    await app.close()
+  })
+
   it('includes modifier extras in preview subtotal', async () => {
     const app = await createTestApp()
     const locationId = app.hubConfig.location_id

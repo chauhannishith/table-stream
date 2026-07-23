@@ -81,7 +81,7 @@ function computeBillForOrder(
     })
   }
 
-  const billing = loadBillingConfigSnapshot(db, locationId)
+  const billing = loadBillingConfigSnapshot(db, locationId, order.zoneId)
   const configRow = getLocationBillingConfig(db, locationId)
   const serviceChargeRules = configRow
     ? (JSON.parse(configRow.serviceChargeRulesJson) as Record<string, unknown>)
@@ -115,7 +115,7 @@ function assertBillableOrder(order: OrderRow, orderId: string): void {
 }
 
 /**
- * Preview bill totals for an open order from snapshotted lines and location billing config.
+ * Preview bill totals for an open order from snapshotted lines and zone/location tax.
  * Request overrides apply to discount/tip; service charge comes from location rules.
  * @throws {AppError} NOT_FOUND when the order is missing; CONFLICT when PAID or VOID
  */

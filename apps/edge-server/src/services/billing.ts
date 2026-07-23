@@ -9,6 +9,7 @@ import { modifierExtraCents } from '../lib/snapshots.js'
 import type { HubDb } from '../db/client.js'
 import { AppError } from '../lib/errors.js'
 import { getLocationBillingConfig } from '../repositories/location-billing-config.js'
+import { getZoneById } from '../repositories/zones.js'
 
 export type BillingConfigSnapshot = {
   priceTaxMode: PriceTaxMode
@@ -68,21 +69,57 @@ export function parseServiceChargePercent(
   return undefined
 }
 
-/** Load price/tax mode and component rates for a location (defaults to exclusive, no tax). */
+function locationTaxComponents(
+  db: HubDb,
+  locationId: string,
+): TaxComponentRates {
+  const row = getLocationBillingConfig(db, locationId)
+  if (!row) return {}
+  return parseTaxComponents(
+    JSON.parse(row.taxRulesJson) as Record<string, unknown>,
+  )
+}
+
+/**
+ * Resolve tax components for an order zone.
+ * Non-empty zone tax_rules win; empty `{}` inherits location_billing_config.
+ */
+export function resolveTaxComponentsForZone(
+  db: HubDb,
+  locationId: string,
+  zoneId: string | null | undefined,
+): TaxComponentRates {
+  if (zoneId) {
+    const zone = getZoneById(db, locationId, zoneId)
+    if (zone) {
+      const zoneComponents = parseTaxComponents(
+        JSON.parse(zone.taxRulesJson) as Record<string, unknown>,
+      )
+      if (Object.keys(zoneComponents).length > 0) {
+        return zoneComponents
+      }
+    }
+  }
+
+  return locationTaxComponents(db, locationId)
+}
+
+/**
+ * Load price/tax mode (location) and tax rates (zone → location fallback).
+ * Defaults to exclusive pricing with no tax when billing config is missing.
+ */
 export function loadBillingConfigSnapshot(
   db: HubDb,
   locationId: string,
+  zoneId?: string | null,
 ): BillingConfigSnapshot {
   const row = getLocationBillingConfig(db, locationId)
-  if (!row) {
-    return { priceTaxMode: 'EXCLUSIVE', taxComponents: {} }
-  }
+  const priceTaxMode = (row?.priceTaxMode ??
+    'EXCLUSIVE') as BillingConfigSnapshot['priceTaxMode']
 
   return {
-    priceTaxMode: row.priceTaxMode as BillingConfigSnapshot['priceTaxMode'],
-    taxComponents: parseTaxComponents(
-      JSON.parse(row.taxRulesJson) as Record<string, unknown>,
-    ),
+    priceTaxMode,
+    taxComponents: resolveTaxComponentsForZone(db, locationId, zoneId),
   }
 }
 
