@@ -2,23 +2,26 @@ import type { DeviceType } from '@table-stream/shared-types/domain'
 
 export const DEVICE_TYPE_STORAGE_KEY = 'ts.device_type'
 
-const DEVICE_HOME_PATH: Record<DeviceType, string> = {
+/** Role home paths — single source for AppRoutes and device_type redirect. */
+export const ROLE_ROUTES = {
   COUNTER: '/counter',
   WAITER: '/waiter',
   KITCHEN: '/kitchen',
   CUSTOMER: '/customer',
-}
+} as const satisfies Record<DeviceType, `/${string}`>
 
-const DEVICE_TYPES = new Set<string>(Object.keys(DEVICE_HOME_PATH))
+export type RolePath = (typeof ROLE_ROUTES)[DeviceType]
+
+const DEVICE_TYPES = new Set<string>(Object.keys(ROLE_ROUTES))
 
 /** Map hub device_type to the role home route. */
-export function pathForDeviceType(deviceType: DeviceType): string {
-  return DEVICE_HOME_PATH[deviceType]
+export function pathForDeviceType(deviceType: DeviceType): RolePath {
+  return ROLE_ROUTES[deviceType]
 }
 
 /** Default home when device_type is missing or unknown (counter-first MVP). */
-export function defaultHomePath(): string {
-  return DEVICE_HOME_PATH.COUNTER
+export function defaultHomePath(): RolePath {
+  return ROLE_ROUTES.COUNTER
 }
 
 /** Read device_type from localStorage; null when unset or invalid. */
@@ -35,7 +38,7 @@ export function setStoredDeviceType(deviceType: DeviceType): void {
 }
 
 /** Resolve the app entry path from stored device_type. */
-export function resolveHomePath(): string {
+export function resolveHomePath(): RolePath {
   const deviceType = getStoredDeviceType()
   if (!deviceType) return defaultHomePath()
   return pathForDeviceType(deviceType)

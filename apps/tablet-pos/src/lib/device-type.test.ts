@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   DEVICE_TYPE_STORAGE_KEY,
+  ROLE_ROUTES,
   defaultHomePath,
   getStoredDeviceType,
   pathForDeviceType,
@@ -32,29 +33,29 @@ describe('device-type routing', () => {
     installMemoryLocalStorage()
   })
 
-  it('maps each device_type to its role route', () => {
-    expect(pathForDeviceType('COUNTER')).toBe('/counter')
-    expect(pathForDeviceType('WAITER')).toBe('/waiter')
-    expect(pathForDeviceType('KITCHEN')).toBe('/kitchen')
-    expect(pathForDeviceType('CUSTOMER')).toBe('/customer')
+  it('maps each device_type to ROLE_ROUTES', () => {
+    expect(pathForDeviceType('COUNTER')).toBe(ROLE_ROUTES.COUNTER)
+    expect(pathForDeviceType('WAITER')).toBe(ROLE_ROUTES.WAITER)
+    expect(pathForDeviceType('KITCHEN')).toBe(ROLE_ROUTES.KITCHEN)
+    expect(pathForDeviceType('CUSTOMER')).toBe(ROLE_ROUTES.CUSTOMER)
   })
 
   it('defaults home to counter when device_type is unset', () => {
     expect(getStoredDeviceType()).toBeNull()
-    expect(resolveHomePath()).toBe('/counter')
-    expect(defaultHomePath()).toBe('/counter')
+    expect(resolveHomePath()).toBe(ROLE_ROUTES.COUNTER)
+    expect(defaultHomePath()).toBe(ROLE_ROUTES.COUNTER)
   })
 
   it('reads and writes device_type in localStorage', () => {
     setStoredDeviceType('KITCHEN')
     expect(localStorage.getItem(DEVICE_TYPE_STORAGE_KEY)).toBe('KITCHEN')
     expect(getStoredDeviceType()).toBe('KITCHEN')
-    expect(resolveHomePath()).toBe('/kitchen')
+    expect(resolveHomePath()).toBe(ROLE_ROUTES.KITCHEN)
   })
 
   it('ignores invalid stored device_type values', () => {
     localStorage.setItem(DEVICE_TYPE_STORAGE_KEY, 'TABLET')
     expect(getStoredDeviceType()).toBeNull()
-    expect(resolveHomePath()).toBe('/counter')
+    expect(resolveHomePath()).toBe(ROLE_ROUTES.COUNTER)
   })
 })

@@ -5,7 +5,7 @@ import {
   KitchenHome,
   WaiterHome,
 } from './features/role-homes'
-import { resolveHomePath } from './lib/device-type'
+import { ROLE_ROUTES, resolveHomePath } from './lib/device-type'
 
 function HomeRedirect() {
   return <Navigate to={resolveHomePath()} replace />
@@ -16,10 +16,10 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<HomeRedirect />} />
-      <Route path="/counter" element={<CounterHome />} />
-      <Route path="/waiter" element={<WaiterHome />} />
-      <Route path="/kitchen" element={<KitchenHome />} />
-      <Route path="/customer" element={<CustomerHome />} />
+      <Route path={ROLE_ROUTES.COUNTER} element={<CounterHome />} />
+      <Route path={ROLE_ROUTES.WAITER} element={<WaiterHome />} />
+      <Route path={ROLE_ROUTES.KITCHEN} element={<KitchenHome />} />
+      <Route path={ROLE_ROUTES.CUSTOMER} element={<CustomerHome />} />
       <Route path="*" element={<HomeRedirect />} />
     </Routes>
   )
