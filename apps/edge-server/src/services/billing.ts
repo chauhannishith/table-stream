@@ -7,6 +7,7 @@ import type { DiscountType, PriceTaxMode } from '@table-stream/shared-types/doma
 import type { OrderLineModifierSnapshot } from '../lib/snapshots.js'
 import { modifierExtraCents } from '../lib/snapshots.js'
 import type { HubDb } from '../db/client.js'
+import { AppError } from '../lib/errors.js'
 import { getLocationBillingConfig } from '../repositories/location-billing-config.js'
 
 export type BillingConfigSnapshot = {
@@ -31,6 +32,30 @@ export function parseTaxComponents(
     }
   }
   return components
+}
+
+/**
+ * Validate tax_rules as a map of non-negative numeric component rates.
+ * Empty `{}` is allowed (zone inherits location defaults at bill time).
+ */
+export function parseTaxRulesMap(raw: unknown): Record<string, number> {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new AppError('VALIDATION_ERROR', 'tax_rules must be an object', 400)
+  }
+
+  const result: Record<string, number> = {}
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        `tax_rules.${key} must be a non-negative number`,
+        400,
+        { key },
+      )
+    }
+    result[key] = value
+  }
+  return result
 }
 
 /** Returns service charge percent when enabled in location rules; otherwise undefined. */
