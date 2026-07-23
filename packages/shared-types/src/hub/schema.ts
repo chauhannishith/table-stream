@@ -305,6 +305,7 @@ export const orders = sqliteTable('orders', {
   subtotalCents: integer('subtotal_cents').notNull().default(0),
   taxCents: integer('tax_cents').notNull().default(0),
   totalCents: integer('total_cents').notNull().default(0),
+  billTaxSnapshotJson: text('bill_tax_snapshot_json').notNull().default('{}'),
 })
 
 export const orderLines = sqliteTable('order_lines', {

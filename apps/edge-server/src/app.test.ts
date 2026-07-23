@@ -86,7 +86,7 @@ describe('edge-server routes', () => {
     expect(body.cloud_sync_enabled).toBe(false)
     expect(body.location_name).toBe('Test Location')
     expect(body.db_ready).toBe(true)
-    expect(body.schema_version).toBe('0004_zone_tax_rules.sql')
+    expect(body.schema_version).toBe('0005_order_bill_tax_snapshot.sql')
 
     await app.close()
   })
