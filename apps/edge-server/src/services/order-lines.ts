@@ -9,9 +9,6 @@ import {
   type OrderLineTagSnapshot,
 } from '../lib/snapshots.js'
 import {
-  getLocationBillingConfig,
-} from '../repositories/location-billing-config.js'
-import {
   getMenuItemById,
   getMenuItemTagIds,
 } from '../repositories/menu-items.js'
@@ -32,28 +29,10 @@ import { getOrderById, updateOrderTotals } from '../repositories/orders.js'
 import {
   computeLineAmounts,
   computeOrderTotalsFromLines,
-  parseTaxComponents,
-  type BillingConfigSnapshot,
+  loadBillingConfigSnapshot,
 } from './billing.js'
 import { resolveUnitPriceCents } from './pricing.js'
 import { toOrderLineDto } from './orders-dto.js'
-
-function loadBillingConfig(
-  db: HubDb,
-  locationId: string,
-): BillingConfigSnapshot {
-  const row = getLocationBillingConfig(db, locationId)
-  if (!row) {
-    return { priceTaxMode: 'EXCLUSIVE', taxComponents: {} }
-  }
-
-  return {
-    priceTaxMode: row.priceTaxMode as BillingConfigSnapshot['priceTaxMode'],
-    taxComponents: parseTaxComponents(
-      JSON.parse(row.taxRulesJson) as Record<string, unknown>,
-    ),
-  }
-}
 
 function loadModifierOptions(
   db: HubDb,
@@ -123,7 +102,8 @@ function parseModifiers(json: string): OrderLineModifierSnapshot[] {
 }
 
 function refreshOrderTotals(db: HubDb, locationId: string, orderId: string) {
-  const billing = loadBillingConfig(db, locationId)
+  const order = getOrderById(db, locationId, orderId)
+  const billing = loadBillingConfigSnapshot(db, locationId, order?.zoneId)
   const lines = listOrderLines(db, orderId)
   const totals = computeOrderTotalsFromLines(
     lines.map((line) => ({
@@ -199,7 +179,7 @@ export function addLine(
 
   const tags = loadTagSnapshots(db, locationId, item.id)
   const unitPriceCents = resolveUnitPriceCents(db, item.id, order.zoneId)
-  const billing = loadBillingConfig(db, locationId)
+  const billing = loadBillingConfigSnapshot(db, locationId, order.zoneId)
   const amounts = computeLineAmounts({
     unitPriceCents,
     quantity,
@@ -269,7 +249,7 @@ export function updateDraftLine(
     }
   }
 
-  const billing = loadBillingConfig(db, locationId)
+  const billing = loadBillingConfigSnapshot(db, locationId, order.zoneId)
   const amounts = computeLineAmounts({
     unitPriceCents: existing.unitPriceCents,
     quantity,

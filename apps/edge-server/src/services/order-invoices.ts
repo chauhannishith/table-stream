@@ -61,7 +61,7 @@ function computeTaxBreakdown(
   order: NonNullable<ReturnType<typeof getOrderById>>,
 ) {
   const lines = listOrderLines(db, order.id)
-  const billing = loadBillingConfigSnapshot(db, locationId)
+  const billing = loadBillingConfigSnapshot(db, locationId, order.zoneId)
   const configRow = getLocationBillingConfig(db, locationId)
   const serviceChargeRules = configRow
     ? (JSON.parse(configRow.serviceChargeRulesJson) as Record<string, unknown>)
