@@ -10,6 +10,9 @@ export const ROLE_ROUTES = {
   CUSTOMER: '/customer',
 } as const satisfies Record<DeviceType, `/${string}`>
 
+/** Counter admin setup screens (Phase F1). */
+export const COUNTER_SETUP_ZONES_PATH = `${ROLE_ROUTES.COUNTER}/setup/zones` as const
+
 export type RolePath = (typeof ROLE_ROUTES)[DeviceType]
 
 const DEVICE_TYPES = new Set<string>(Object.keys(ROLE_ROUTES))

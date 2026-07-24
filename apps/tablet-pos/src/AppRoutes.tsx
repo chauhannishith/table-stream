@@ -5,7 +5,12 @@ import {
   KitchenHome,
   WaiterHome,
 } from './features/role-homes'
-import { ROLE_ROUTES, resolveHomePath } from './lib/device-type'
+import { ZonesSetupScreen } from './features/setup/zones/ZonesSetupScreen'
+import {
+  COUNTER_SETUP_ZONES_PATH,
+  ROLE_ROUTES,
+  resolveHomePath,
+} from './lib/device-type'
 
 function HomeRedirect() {
   return <Navigate to={resolveHomePath()} replace />
@@ -17,6 +22,7 @@ export function AppRoutes() {
     <Routes>
       <Route path="/" element={<HomeRedirect />} />
       <Route path={ROLE_ROUTES.COUNTER} element={<CounterHome />} />
+      <Route path={COUNTER_SETUP_ZONES_PATH} element={<ZonesSetupScreen />} />
       <Route path={ROLE_ROUTES.WAITER} element={<WaiterHome />} />
       <Route path={ROLE_ROUTES.KITCHEN} element={<KitchenHome />} />
       <Route path={ROLE_ROUTES.CUSTOMER} element={<CustomerHome />} />

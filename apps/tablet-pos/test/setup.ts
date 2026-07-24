@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 import { afterAll, afterEach, beforeAll } from 'vitest'
 import { cleanup } from '@testing-library/react'
+import { resetZonesStore } from './mocks/handlers'
 import { server } from './mocks/server'
 
 beforeAll(() => {
@@ -10,6 +11,7 @@ beforeAll(() => {
 afterEach(() => {
   cleanup()
   server.resetHandlers()
+  resetZonesStore()
   sessionStorage.clear()
   localStorage.clear()
 })

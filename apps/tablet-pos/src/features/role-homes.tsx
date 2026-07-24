@@ -1,11 +1,16 @@
+import { Link } from 'react-router-dom'
+import type { ReactNode } from 'react'
+import { COUNTER_SETUP_ZONES_PATH } from '../lib/device-type'
+
 declare const __EDGE_API_URL__: string
 
 type RoleHomeProps = {
   title: string
   description: string
+  children?: ReactNode
 }
 
-function RoleHome({ title, description }: RoleHomeProps) {
+function RoleHome({ title, description, children }: RoleHomeProps) {
   return (
     <main className="shell">
       <header>
@@ -14,6 +19,7 @@ function RoleHome({ title, description }: RoleHomeProps) {
       </header>
       <section className="card">
         <p>{description}</p>
+        {children}
       </section>
     </main>
   )
@@ -23,8 +29,12 @@ export function CounterHome() {
   return (
     <RoleHome
       title="Counter"
-      description="Takeaway intake, billing, and setup. Coming in Phase F1."
-    />
+      description="Takeaway intake, billing, and setup."
+    >
+      <nav className="setup-nav">
+        <Link to={COUNTER_SETUP_ZONES_PATH}>Setup: Zones</Link>
+      </nav>
+    </RoleHome>
   )
 }
 
