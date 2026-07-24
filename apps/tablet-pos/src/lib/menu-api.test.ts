@@ -7,6 +7,7 @@ import {
   listCategories,
   listMenuItems,
   priceStringToCents,
+  updateCategory,
   updateMenuItem,
 } from './menu-api'
 
@@ -144,5 +145,36 @@ describe('menu API helpers', () => {
         client,
       ),
     ).resolves.toMatchObject({ name: 'House curry', is_active: false })
+  })
+
+  it('patches category name and active flag', async () => {
+    const category = {
+      id: 'cat_1',
+      location_id: 'loc',
+      name: 'Mains',
+      sort_order: 0,
+      is_active: true,
+      updated_at: '2026-07-24T00:00:00.000Z',
+    }
+    const client = {
+      get: vi.fn(),
+      post: vi.fn(),
+      patch: vi.fn(async () => ({
+        category: { ...category, name: 'Entrees', is_active: false },
+      })),
+      put: vi.fn(),
+      delete: vi.fn(),
+    } as unknown as HubApiClient
+
+    await expect(
+      updateCategory(
+        'cat_1',
+        { name: 'Entrees', is_active: false },
+        client,
+      ),
+    ).resolves.toMatchObject({ name: 'Entrees', is_active: false })
+    expect(client.patch).toHaveBeenCalledWith('/v1/menu/categories/cat_1', {
+      body: { name: 'Entrees', is_active: false },
+    })
   })
 })
