@@ -173,10 +173,34 @@ body {
 
 .setup-nav {
   margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .setup-nav a {
   color: #8eb6ff;
+}
+
+.menu-category-group + .menu-category-group {
+  margin-top: 1.25rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #2c3a4f;
+}
+
+.menu-category-heading {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.pairing-form select {
+  font: inherit;
+  border-radius: 8px;
+  border: 1px solid #2c3a4f;
+  background: #0f1419;
+  color: inherit;
+  padding: 0.65rem 0.75rem;
 }
 
 .button-row {
