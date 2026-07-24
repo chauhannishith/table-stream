@@ -70,3 +70,37 @@ body {
   margin: 0;
   color: #ff8f8f;
 }
+
+.pin-display {
+  min-height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.35em;
+  font-size: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid #2c3a4f;
+  background: #0f1419;
+}
+
+.pin-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.pin-key {
+  font: inherit;
+  border-radius: 8px;
+  border: 1px solid #2c3a4f;
+  background: #0f1419;
+  color: inherit;
+  padding: 0.85rem 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.pin-key:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
