@@ -80,6 +80,10 @@ function computeTaxSnapshot(
     : {}
   const serviceChargePercent = parseServiceChargePercent(serviceChargeRules)
 
+  const discountType =
+    (order.discountType as 'PERCENT' | 'FIXED' | null | undefined) ?? undefined
+  const discountValue = order.discountValue ?? undefined
+
   const preview = computeBillPreview(
     lines.map((line) => ({
       unitPriceCents: line.unitPriceCents,
@@ -89,10 +93,8 @@ function computeTaxSnapshot(
     billing,
     serviceChargePercent,
     {
-      discountType:
-        (order.discountType as 'PERCENT' | 'FIXED' | null | undefined) ??
-        undefined,
-      discountValue: order.discountValue ?? undefined,
+      ...(discountType !== undefined ? { discountType } : {}),
+      ...(discountValue !== undefined ? { discountValue } : {}),
       tipCents: order.tipCents,
     },
   )
@@ -107,7 +109,7 @@ function invoiceDocumentPath(
   issuedAt: string,
 ): string {
   const [datePart] = issuedAt.split(' ')
-  const [year, month] = datePart.split('-')
+  const [year, month] = (datePart ?? '1970-01-01').split('-')
   return `${dataDir}/invoices/${locationId}/${year}/${month}/${invoiceId}.pdf`
 }
 

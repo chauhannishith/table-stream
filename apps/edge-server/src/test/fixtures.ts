@@ -84,8 +84,10 @@ export async function createTestApp(
     })
     app.testStaffToken = staffToken
 
-    const originalInject = app.inject.bind(app)
-    app.inject = ((opts: Parameters<typeof app.inject>[0]) => {
+    const originalInject = app.inject.bind(app) as (
+      opts: string | Record<string, unknown>,
+    ) => ReturnType<TestApp['inject']>
+    app.inject = ((opts: unknown) => {
       if (typeof opts === 'string') {
         return originalInject({
           url: opts,
@@ -96,9 +98,11 @@ export async function createTestApp(
         })
       }
 
-      const incoming = {
-        ...((opts.headers as Record<string, string> | undefined) ?? {}),
-      }
+      const request = (opts ?? {}) as Record<string, unknown>
+      const incoming =
+        request.headers && typeof request.headers === 'object'
+          ? { ...(request.headers as Record<string, string>) }
+          : {}
       const headers: Record<string, string> = { ...incoming }
       if (!('x-device-token' in headers)) headers['x-device-token'] = token
       if (!('x-staff-token' in headers)) headers['x-staff-token'] = staffToken
@@ -106,7 +110,7 @@ export async function createTestApp(
       if (headers['x-staff-token'] === '') delete headers['x-staff-token']
 
       return originalInject({
-        ...opts,
+        ...request,
         headers,
       })
     }) as typeof app.inject

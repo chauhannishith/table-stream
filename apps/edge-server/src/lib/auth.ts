@@ -24,7 +24,10 @@ export function verifyPin(pin: string, stored: string): boolean {
   const parts = stored.split(':')
   if (parts.length !== 3 || parts[0] !== 'scrypt') return false
 
-  const [, saltHex, hashHex] = parts
+  const saltHex = parts[1]
+  const hashHex = parts[2]
+  if (!saltHex || !hashHex) return false
+
   const salt = Buffer.from(saltHex, 'hex')
   const expected = Buffer.from(hashHex, 'hex')
   const actual = scryptSync(pin, salt, expected.length, SCRYPT_OPTIONS)

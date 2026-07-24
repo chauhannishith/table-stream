@@ -88,7 +88,9 @@ export const orderBillingRoutes: FastifyPluginAsync = async (app) => {
       id,
       {
         tenderType: parseTenderType(body?.tender_type),
-        amountCents: body?.amount_cents,
+        ...(body?.amount_cents !== undefined
+          ? { amountCents: body.amount_cents }
+          : {}),
       },
     )
 
@@ -104,7 +106,11 @@ export const orderBillingRoutes: FastifyPluginAsync = async (app) => {
       app.hubConfig,
       app.hubConfig.location_id,
       id,
-      { cashierId: body?.cashier_id },
+      {
+        ...(body?.cashier_id !== undefined
+          ? { cashierId: body.cashier_id }
+          : {}),
+      },
     )
   })
 }

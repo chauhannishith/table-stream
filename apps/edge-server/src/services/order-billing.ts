@@ -59,13 +59,16 @@ function resolveBillInput(
   discountType?: DiscountType
   discountValue?: number
 } {
+  const discountType =
+    input.discountType ??
+    (order.discountType as DiscountType | null | undefined) ??
+    undefined
+  const discountValue = input.discountValue ?? order.discountValue ?? undefined
+
   return {
-    discountType:
-      input.discountType ??
-      (order.discountType as DiscountType | null | undefined) ??
-      undefined,
-    discountValue: input.discountValue ?? order.discountValue ?? undefined,
     tipCents: input.tipCents ?? order.tipCents,
+    ...(discountType !== undefined ? { discountType } : {}),
+    ...(discountValue !== undefined ? { discountValue } : {}),
   }
 }
 
