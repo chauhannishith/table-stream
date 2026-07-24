@@ -305,6 +305,39 @@ export const handlers = [
     return HttpResponse.json({ category }, { status: 201 })
   }),
 
+  http.patch('*/v1/menu/categories/:id', async ({ params, request }) => {
+    const id = String(params.id)
+    const existing = categories.get(id)
+    if (!existing) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Category not found',
+            details: { id },
+          },
+        },
+        { status: 404 },
+      )
+    }
+
+    const body = (await request.json()) as {
+      name?: string
+      sort_order?: number
+      is_active?: boolean
+    }
+
+    const category: CategoryRecord = {
+      ...existing,
+      name: body.name?.trim() || existing.name,
+      sort_order: body.sort_order ?? existing.sort_order,
+      is_active: body.is_active ?? existing.is_active,
+      updated_at: nowIso(),
+    }
+    categories.set(id, category)
+    return HttpResponse.json({ category })
+  }),
+
   http.get('*/v1/menu/items', ({ request }) => {
     const includeInactive =
       new URL(request.url).searchParams.get('include_inactive') === 'true'
