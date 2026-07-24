@@ -14,6 +14,8 @@ export const ROLE_ROUTES = {
 export const COUNTER_SETUP_ZONES_PATH = `${ROLE_ROUTES.COUNTER}/setup/zones` as const
 export const COUNTER_SETUP_MENU_ITEMS_PATH =
   `${ROLE_ROUTES.COUNTER}/setup/menu-items` as const
+export const COUNTER_SETUP_STAFF_PATH =
+  `${ROLE_ROUTES.COUNTER}/setup/staff` as const
 
 export type RolePath = (typeof ROLE_ROUTES)[DeviceType]
 
