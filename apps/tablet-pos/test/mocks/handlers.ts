@@ -18,6 +18,40 @@ function resetZonesStore() {
   zoneSeq = 0
 }
 
+type CategoryRecord = {
+  id: string
+  location_id: string
+  name: string
+  sort_order: number
+  is_active: boolean
+  updated_at: string
+}
+
+type MenuItemRecord = {
+  id: string
+  location_id: string
+  category_id: string
+  name: string
+  base_price_cents: number
+  unit_price_cents: number
+  kds_station_id: string | null
+  is_active: boolean
+  tag_ids: string[]
+  updated_at: string
+}
+
+const categories = new Map<string, CategoryRecord>()
+const menuItems = new Map<string, MenuItemRecord>()
+let categorySeq = 0
+let menuItemSeq = 0
+
+function resetMenuStore() {
+  categories.clear()
+  menuItems.clear()
+  categorySeq = 0
+  menuItemSeq = 0
+}
+
 function nowIso() {
   return new Date().toISOString()
 }
@@ -200,6 +234,162 @@ export const handlers = [
     zones.set(id, zone)
     return HttpResponse.json({ zone })
   }),
+
+  http.get('*/v1/menu/categories', ({ request }) => {
+    const includeInactive =
+      new URL(request.url).searchParams.get('include_inactive') === 'true'
+    const list = [...categories.values()].filter(
+      (category) => includeInactive || category.is_active,
+    )
+    return HttpResponse.json({ categories: list })
+  }),
+
+  http.post('*/v1/menu/categories', async ({ request }) => {
+    const body = (await request.json()) as { name?: string }
+    if (!body.name?.trim()) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'name is required',
+            details: {},
+          },
+        },
+        { status: 400 },
+      )
+    }
+
+    const category: CategoryRecord = {
+      id: `cat_${++categorySeq}`,
+      location_id: 'loc_test',
+      name: body.name.trim(),
+      sort_order: 0,
+      is_active: true,
+      updated_at: nowIso(),
+    }
+    categories.set(category.id, category)
+    return HttpResponse.json({ category }, { status: 201 })
+  }),
+
+  http.get('*/v1/menu/items', ({ request }) => {
+    const includeInactive =
+      new URL(request.url).searchParams.get('include_inactive') === 'true'
+    const list = [...menuItems.values()].filter(
+      (item) => includeInactive || item.is_active,
+    )
+    return HttpResponse.json({ items: list })
+  }),
+
+  http.post('*/v1/menu/items', async ({ request }) => {
+    const body = (await request.json()) as {
+      category_id?: string
+      name?: string
+      base_price_cents?: number
+      is_active?: boolean
+    }
+    if (!body.category_id || !body.name?.trim()) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'category_id and name are required',
+            details: {},
+          },
+        },
+        { status: 400 },
+      )
+    }
+    if (typeof body.base_price_cents !== 'number') {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'base_price_cents is required',
+            details: {},
+          },
+        },
+        { status: 400 },
+      )
+    }
+    if (!categories.has(body.category_id)) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Category not found',
+            details: { category_id: body.category_id },
+          },
+        },
+        { status: 404 },
+      )
+    }
+
+    const item: MenuItemRecord = {
+      id: `mi_${++menuItemSeq}`,
+      location_id: 'loc_test',
+      category_id: body.category_id,
+      name: body.name.trim(),
+      base_price_cents: body.base_price_cents,
+      unit_price_cents: body.base_price_cents,
+      kds_station_id: null,
+      is_active: body.is_active ?? true,
+      tag_ids: [],
+      updated_at: nowIso(),
+    }
+    menuItems.set(item.id, item)
+    return HttpResponse.json({ item }, { status: 201 })
+  }),
+
+  http.patch('*/v1/menu/items/:id', async ({ params, request }) => {
+    const id = String(params.id)
+    const existing = menuItems.get(id)
+    if (!existing) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Menu item not found',
+            details: { id },
+          },
+        },
+        { status: 404 },
+      )
+    }
+
+    const body = (await request.json()) as {
+      category_id?: string
+      name?: string
+      base_price_cents?: number
+      is_active?: boolean
+    }
+
+    if (body.category_id && !categories.has(body.category_id)) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Category not found',
+            details: { category_id: body.category_id },
+          },
+        },
+        { status: 404 },
+      )
+    }
+
+    const base_price_cents =
+      body.base_price_cents ?? existing.base_price_cents
+    const item: MenuItemRecord = {
+      ...existing,
+      category_id: body.category_id ?? existing.category_id,
+      name: body.name?.trim() || existing.name,
+      base_price_cents,
+      unit_price_cents: base_price_cents,
+      is_active: body.is_active ?? existing.is_active,
+      updated_at: nowIso(),
+    }
+    menuItems.set(id, item)
+    return HttpResponse.json({ item })
+  }),
 ]
 
-export { resetZonesStore }
+export { resetZonesStore, resetMenuStore }
