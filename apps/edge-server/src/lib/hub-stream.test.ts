@@ -87,7 +87,7 @@ function createStreamRedis(): RedisClient & {
         }
         const pending = (streams.get(key) ?? []).filter((row) => row.id > marker)
         if (pending.length === 0) return null
-        return [[key, pending.map((row) => [row.id, ...row.fields])]]
+        return [[key, pending.map((row) => [row.id, row.fields])]]
       }
 
       const pending =
@@ -95,7 +95,7 @@ function createStreamRedis(): RedisClient & {
           ? rows
           : rows.filter((row) => row.id > lastId)
       if (pending.length === 0) return null
-      return [[key, pending.map((row) => [row.id, ...row.fields])]]
+      return [[key, pending.map((row) => [row.id, row.fields])]]
     },
 
     entries() {

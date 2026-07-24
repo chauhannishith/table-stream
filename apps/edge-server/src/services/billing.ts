@@ -293,9 +293,15 @@ export function computeBillPreview(
     })),
     priceTaxMode: billing.priceTaxMode,
     taxComponents: billing.taxComponents,
-    discountType: options.discountType,
-    discountValue: options.discountValue,
-    serviceChargePercent,
-    tipCents: options.tipCents,
+    ...(options.discountType !== undefined
+      ? { discountType: options.discountType }
+      : {}),
+    ...(options.discountValue !== undefined
+      ? { discountValue: options.discountValue }
+      : {}),
+    ...(serviceChargePercent !== undefined
+      ? { serviceChargePercent }
+      : {}),
+    ...(options.tipCents !== undefined ? { tipCents: options.tipCents } : {}),
   })
 }

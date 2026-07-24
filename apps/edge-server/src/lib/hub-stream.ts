@@ -10,8 +10,6 @@ export type HubStreamEvent = {
   payload: Record<string, unknown>
 }
 
-type StreamReadRow = [string, [string, ...string[]][]]
-
 function eventToStreamFields(event: HubStreamEvent): string[] {
   return [
     'event_id',
@@ -31,7 +29,10 @@ function eventToStreamFields(event: HubStreamEvent): string[] {
 export function parseHubStreamFields(fields: string[]): HubStreamEvent | null {
   const map: Record<string, string> = {}
   for (let i = 0; i < fields.length; i += 2) {
-    map[fields[i]] = fields[i + 1]
+    const key = fields[i]
+    const value = fields[i + 1]
+    if (key === undefined || value === undefined) continue
+    map[key] = value
   }
 
   if (!map.event_type || !map.location_id) return null
@@ -69,7 +70,15 @@ export async function publishHubStreamEvent(
     payload,
   }
 
-  return redis.xadd(streamEventsKey(), '*', ...eventToStreamFields(event))
+  const streamId = await redis.xadd(
+    streamEventsKey(),
+    '*',
+    ...eventToStreamFields(event),
+  )
+  if (!streamId) {
+    throw new Error('Failed to append hub stream event')
+  }
+  return streamId
 }
 
 /** Read hub stream entries after `lastId`, optionally blocking for new events. */
@@ -92,9 +101,9 @@ export async function readHubStreamEvents(
   if (!result) return []
 
   const items: Array<{ id: string; event: HubStreamEvent }> = []
-  for (const [, entries] of result as StreamReadRow[]) {
-    for (const [entryId, ...fieldList] of entries) {
-      const event = parseHubStreamFields(fieldList)
+  for (const [, entries] of result) {
+    for (const [entryId, fields] of entries) {
+      const event = parseHubStreamFields(fields)
       if (event) {
         items.push({ id: entryId, event })
       }
