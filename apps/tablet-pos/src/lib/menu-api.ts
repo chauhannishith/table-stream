@@ -29,6 +29,12 @@ export type MenuItemWriteInput = {
   is_active?: boolean
 }
 
+export type CategoryWriteInput = {
+  name?: string
+  sort_order?: number
+  is_active?: boolean
+}
+
 /** Parse a decimal money string (e.g. "12.50") into integer cents. */
 export function priceStringToCents(raw: string): number {
   const trimmed = raw.trim()
@@ -66,14 +72,36 @@ export async function listCategories(
   return result.categories
 }
 
-/** Create a menu category (minimal helper until F1.3). */
+/** Create a menu category. */
 export async function createCategory(
-  input: { name: string },
+  input: { name: string; sort_order?: number; is_active?: boolean },
   client: HubApiClient = api,
 ): Promise<MenuCategory> {
+  const body: CategoryWriteInput = { name: input.name.trim() }
+  if (input.sort_order !== undefined) body.sort_order = input.sort_order
+  if (input.is_active !== undefined) body.is_active = input.is_active
+
   const result = await client.post<{ category: MenuCategory }>(
     '/v1/menu/categories',
-    { body: { name: input.name.trim() } },
+    { body },
+  )
+  return result.category
+}
+
+/** Patch category fields (rename, sort_order, activate/deactivate). */
+export async function updateCategory(
+  id: string,
+  input: CategoryWriteInput,
+  client: HubApiClient = api,
+): Promise<MenuCategory> {
+  const body: CategoryWriteInput = {}
+  if (input.name !== undefined) body.name = input.name.trim()
+  if (input.sort_order !== undefined) body.sort_order = input.sort_order
+  if (input.is_active !== undefined) body.is_active = input.is_active
+
+  const result = await client.patch<{ category: MenuCategory }>(
+    `/v1/menu/categories/${id}`,
+    { body },
   )
   return result.category
 }
