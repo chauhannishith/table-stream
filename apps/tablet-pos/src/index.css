@@ -25,3 +25,48 @@ body {
   padding: 1.25rem;
   margin-top: 1rem;
 }
+
+.pairing-shell {
+  max-width: 28rem;
+}
+
+.pairing-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.95rem;
+}
+
+.field input,
+.field select,
+.pairing-form button {
+  font: inherit;
+  border-radius: 8px;
+  border: 1px solid #2c3a4f;
+  background: #0f1419;
+  color: inherit;
+  padding: 0.65rem 0.75rem;
+}
+
+.pairing-form button {
+  background: #2f6fed;
+  border-color: #2f6fed;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.pairing-form button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.form-error {
+  margin: 0;
+  color: #ff8f8f;
+}
