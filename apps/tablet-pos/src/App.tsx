@@ -3,6 +3,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { AppRoutes } from './AppRoutes'
 import { StaffLoginScreen } from './features/auth/StaffLoginScreen'
 import { PairingScreen } from './features/pairing/PairingScreen'
+import { HubStatusBar } from './features/status/HubStatusBar'
 import { getDeviceToken, getStaffToken } from './lib/auth-storage'
 import { deviceRequiresStaffLogin } from './lib/staff-login'
 
@@ -29,7 +30,10 @@ export function App() {
 
   return (
     <BrowserRouter>
-      <AppRoutes />
+      <div className="app-frame">
+        <HubStatusBar />
+        <AppRoutes />
+      </div>
     </BrowserRouter>
   )
 }
