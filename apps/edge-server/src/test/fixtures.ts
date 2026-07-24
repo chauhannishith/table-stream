@@ -38,9 +38,14 @@ export function createTestRedis(): RedisClient {
     ping: async () => 'PONG',
     zadd: async () => 1,
     hset: async () => 1,
+    hgetall: async () => ({}),
     xadd: async () => '0-1',
     xread: async () => null,
-  } as unknown as RedisClient
+    set: async () => 'OK',
+    get: async () => null,
+    del: async () => 0,
+    expire: async () => 1,
+  }
 }
 
 export type TestApp = Awaited<ReturnType<typeof buildApp>> & {
