@@ -10,8 +10,6 @@ export type HubStreamEvent = {
   payload: Record<string, unknown>
 }
 
-type StreamReadResult = Array<[string, Array<[string, string[]]>]>
-
 function eventToStreamFields(event: HubStreamEvent): string[] {
   return [
     'event_id',
@@ -103,7 +101,7 @@ export async function readHubStreamEvents(
   if (!result) return []
 
   const items: Array<{ id: string; event: HubStreamEvent }> = []
-  for (const [, entries] of result as unknown as StreamReadResult) {
+  for (const [, entries] of result) {
     for (const [entryId, fields] of entries) {
       const event = parseHubStreamFields(fields)
       if (event) {
