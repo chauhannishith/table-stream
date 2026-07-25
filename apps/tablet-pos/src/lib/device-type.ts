@@ -28,6 +28,8 @@ export const COUNTER_SETUP_BILLING_PATH =
   `${ROLE_ROUTES.COUNTER}/setup/billing` as const
 export const COUNTER_SETUP_TABLES_PATH =
   `${ROLE_ROUTES.COUNTER}/setup/tables` as const
+export const COUNTER_SETUP_PRINTERS_PATH =
+  `${ROLE_ROUTES.COUNTER}/setup/printers` as const
 
 export type RolePath = (typeof ROLE_ROUTES)[DeviceType]
 
