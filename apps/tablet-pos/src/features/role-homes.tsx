@@ -6,6 +6,7 @@ import {
   COUNTER_SETUP_MODIFIERS_PATH,
   COUNTER_SETUP_STAFF_PATH,
   COUNTER_SETUP_TAGS_PATH,
+  COUNTER_SETUP_ZONE_PRICES_PATH,
   COUNTER_SETUP_ZONES_PATH,
 } from '../lib/device-type'
 
@@ -45,6 +46,7 @@ export function CounterHome() {
         <Link to={COUNTER_SETUP_TAGS_PATH}>Setup: Tags</Link>
         <Link to={COUNTER_SETUP_MENU_ITEMS_PATH}>Setup: Menu items</Link>
         <Link to={COUNTER_SETUP_MODIFIERS_PATH}>Setup: Modifiers</Link>
+        <Link to={COUNTER_SETUP_ZONE_PRICES_PATH}>Setup: Zone prices</Link>
       </nav>
     </RoleHome>
   )
