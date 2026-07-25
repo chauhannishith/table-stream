@@ -12,6 +12,7 @@ import {
   type MenuCategory,
   type MenuItem,
 } from '../../../lib/menu-api'
+import type { SetupMode } from '../setup-mode'
 import { MenuItemEditor } from './MenuItemEditor'
 
 /** Counter setup: list / create / edit / deactivate menu items by category. */
@@ -20,11 +21,7 @@ export function MenuItemsSetupScreen() {
   const [categories, setCategories] = useState<MenuCategory[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [mode, setMode] = useState<
-    | { kind: 'list' }
-    | { kind: 'create' }
-    | { kind: 'edit'; item: MenuItem }
-  >({ kind: 'list' })
+  const [mode, setMode] = useState<SetupMode<MenuItem>>({ kind: 'list' })
 
   const categoryNameById = useMemo(() => {
     const map = new Map<string, string>()
@@ -139,16 +136,16 @@ export function MenuItemsSetupScreen() {
 
       {mode.kind === 'edit' ? (
         <MenuItemEditor
-          title={`Edit ${mode.item.name}`}
-          initialName={mode.item.name}
-          initialCategoryId={mode.item.category_id}
-          initialBasePriceCents={mode.item.base_price_cents}
+          title={`Edit ${mode.entity.name}`}
+          initialName={mode.entity.name}
+          initialCategoryId={mode.entity.category_id}
+          initialBasePriceCents={mode.entity.base_price_cents}
           categories={categories}
           allowNewCategory={false}
           submitLabel="Save"
           onCancel={() => setMode({ kind: 'list' })}
           onSubmit={async (input) => {
-            await updateMenuItem(mode.item.id, {
+            await updateMenuItem(mode.entity.id, {
               name: input.name,
               category_id: input.category_id,
               base_price_cents: input.base_price_cents,
@@ -185,7 +182,9 @@ export function MenuItemsSetupScreen() {
                       <button
                         type="button"
                         className="btn-secondary"
-                        onClick={() => setMode({ kind: 'edit', item })}
+                        onClick={() =>
+                          setMode({ kind: 'edit', entity: item })
+                        }
                       >
                         Edit
                       </button>

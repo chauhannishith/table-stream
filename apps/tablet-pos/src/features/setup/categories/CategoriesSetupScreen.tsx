@@ -8,6 +8,7 @@ import {
   updateCategory,
   type MenuCategory,
 } from '../../../lib/menu-api'
+import type { SetupMode } from '../setup-mode'
 import { CategoryEditor } from './CategoryEditor'
 
 /** Counter setup: list / create / rename / deactivate menu categories. */
@@ -15,11 +16,7 @@ export function CategoriesSetupScreen() {
   const [categories, setCategories] = useState<MenuCategory[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [mode, setMode] = useState<
-    | { kind: 'list' }
-    | { kind: 'create' }
-    | { kind: 'edit'; category: MenuCategory }
-  >({ kind: 'list' })
+  const [mode, setMode] = useState<SetupMode<MenuCategory>>({ kind: 'list' })
 
   async function reload() {
     setLoading(true)
@@ -91,12 +88,12 @@ export function CategoriesSetupScreen() {
 
       {mode.kind === 'edit' ? (
         <CategoryEditor
-          title={`Edit ${mode.category.name}`}
-          initialName={mode.category.name}
+          title={`Edit ${mode.entity.name}`}
+          initialName={mode.entity.name}
           submitLabel="Save"
           onCancel={() => setMode({ kind: 'list' })}
           onSubmit={async (input) => {
-            await updateCategory(mode.category.id, { name: input.name })
+            await updateCategory(mode.entity.id, { name: input.name })
             setMode({ kind: 'list' })
             await reload()
           }}
@@ -122,7 +119,7 @@ export function CategoriesSetupScreen() {
                   <button
                     type="button"
                     className="btn-secondary"
-                    onClick={() => setMode({ kind: 'edit', category })}
+                    onClick={() => setMode({ kind: 'edit', entity: category })}
                   >
                     Edit
                   </button>

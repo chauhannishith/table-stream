@@ -8,6 +8,7 @@ import {
   updateTag,
   type MenuTag,
 } from '../../../lib/tags-api'
+import type { SetupMode } from '../setup-mode'
 import { TagEditor } from './TagEditor'
 
 /** Counter setup: list / create / edit / deactivate menu tags. */
@@ -15,9 +16,7 @@ export function TagsSetupScreen() {
   const [tags, setTags] = useState<MenuTag[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [mode, setMode] = useState<
-    { kind: 'list' } | { kind: 'create' } | { kind: 'edit'; tag: MenuTag }
-  >({ kind: 'list' })
+  const [mode, setMode] = useState<SetupMode<MenuTag>>({ kind: 'list' })
 
   async function reload() {
     setLoading(true)
@@ -90,13 +89,13 @@ export function TagsSetupScreen() {
 
       {mode.kind === 'edit' ? (
         <TagEditor
-          title={`Edit ${mode.tag.label}`}
-          initialCode={mode.tag.code}
-          initialLabel={mode.tag.label}
+          title={`Edit ${mode.entity.label}`}
+          initialCode={mode.entity.code}
+          initialLabel={mode.entity.label}
           submitLabel="Save"
           onCancel={() => setMode({ kind: 'list' })}
           onSubmit={async (input) => {
-            await updateTag(mode.tag.id, input)
+            await updateTag(mode.entity.id, input)
             setMode({ kind: 'list' })
             await reload()
           }}
@@ -124,7 +123,7 @@ export function TagsSetupScreen() {
                   <button
                     type="button"
                     className="btn-secondary"
-                    onClick={() => setMode({ kind: 'edit', tag })}
+                    onClick={() => setMode({ kind: 'edit', entity: tag })}
                   >
                     Edit
                   </button>

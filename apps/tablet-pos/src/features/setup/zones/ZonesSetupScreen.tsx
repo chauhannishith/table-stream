@@ -8,6 +8,7 @@ import {
   updateZone,
   type Zone,
 } from '../../../lib/zones-api'
+import type { SetupMode } from '../setup-mode'
 import { ZoneEditor } from './ZoneEditor'
 
 /** Counter setup: list / create / rename / deactivate zones + tax_rules. */
@@ -15,11 +16,7 @@ export function ZonesSetupScreen() {
   const [zones, setZones] = useState<Zone[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [mode, setMode] = useState<
-    | { kind: 'list' }
-    | { kind: 'create' }
-    | { kind: 'edit'; zone: Zone }
-  >({ kind: 'list' })
+  const [mode, setMode] = useState<SetupMode<Zone>>({ kind: 'list' })
 
   async function reload() {
     setLoading(true)
@@ -92,13 +89,13 @@ export function ZonesSetupScreen() {
 
       {mode.kind === 'edit' ? (
         <ZoneEditor
-          title={`Edit ${mode.zone.name}`}
-          initialName={mode.zone.name}
-          initialTaxRules={mode.zone.tax_rules}
+          title={`Edit ${mode.entity.name}`}
+          initialName={mode.entity.name}
+          initialTaxRules={mode.entity.tax_rules}
           submitLabel="Save"
           onCancel={() => setMode({ kind: 'list' })}
           onSubmit={async (input) => {
-            await updateZone(mode.zone.id, input)
+            await updateZone(mode.entity.id, input)
             setMode({ kind: 'list' })
             await reload()
           }}
@@ -130,7 +127,7 @@ export function ZonesSetupScreen() {
                   <button
                     type="button"
                     className="btn-secondary"
-                    onClick={() => setMode({ kind: 'edit', zone })}
+                    onClick={() => setMode({ kind: 'edit', entity: zone })}
                   >
                     Edit
                   </button>
