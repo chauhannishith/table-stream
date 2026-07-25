@@ -26,6 +26,8 @@ export const COUNTER_SETUP_ZONE_PRICES_PATH =
   `${ROLE_ROUTES.COUNTER}/setup/zone-prices` as const
 export const COUNTER_SETUP_BILLING_PATH =
   `${ROLE_ROUTES.COUNTER}/setup/billing` as const
+export const COUNTER_SETUP_TABLES_PATH =
+  `${ROLE_ROUTES.COUNTER}/setup/tables` as const
 
 export type RolePath = (typeof ROLE_ROUTES)[DeviceType]
 
