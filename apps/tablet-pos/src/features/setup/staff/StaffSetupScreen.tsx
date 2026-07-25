@@ -8,6 +8,7 @@ import {
   updateStaff,
   type Staff,
 } from '../../../lib/staff-api'
+import type { SetupMode } from '../setup-mode'
 import { StaffEditor } from './StaffEditor'
 
 /** Counter setup: list / create / edit role / deactivate staff (no pin_hash). */
@@ -15,11 +16,7 @@ export function StaffSetupScreen() {
   const [staff, setStaff] = useState<Staff[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [mode, setMode] = useState<
-    | { kind: 'list' }
-    | { kind: 'create' }
-    | { kind: 'edit'; member: Staff }
-  >({ kind: 'list' })
+  const [mode, setMode] = useState<SetupMode<Staff>>({ kind: 'list' })
 
   async function reload() {
     setLoading(true)
@@ -100,14 +97,14 @@ export function StaffSetupScreen() {
 
       {mode.kind === 'edit' ? (
         <StaffEditor
-          title={`Edit ${mode.member.name}`}
-          initialName={mode.member.name}
-          initialRole={mode.member.role}
+          title={`Edit ${mode.entity.name}`}
+          initialName={mode.entity.name}
+          initialRole={mode.entity.role}
           requirePin={false}
           submitLabel="Save"
           onCancel={() => setMode({ kind: 'list' })}
           onSubmit={async (input) => {
-            await updateStaff(mode.member.id, {
+            await updateStaff(mode.entity.id, {
               name: input.name,
               role: input.role,
               ...(input.pin ? { pin: input.pin } : {}),
@@ -139,7 +136,7 @@ export function StaffSetupScreen() {
                   <button
                     type="button"
                     className="btn-secondary"
-                    onClick={() => setMode({ kind: 'edit', member })}
+                    onClick={() => setMode({ kind: 'edit', entity: member })}
                   >
                     Edit
                   </button>
