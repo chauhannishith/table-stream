@@ -4,6 +4,7 @@ import { cleanup } from '@testing-library/react'
 import {
   resetBillingStore,
   resetMenuStore,
+  resetPrintersStore,
   resetStaffStore,
   resetTablesStore,
   resetZonesStore,
@@ -22,6 +23,7 @@ afterEach(() => {
   resetMenuStore()
   resetStaffStore()
   resetBillingStore()
+  resetPrintersStore()
   sessionStorage.clear()
   localStorage.clear()
 })

@@ -243,6 +243,70 @@ function resetBillingStore() {
   billingConfig = defaultBillingConfig()
 }
 
+type PrinterRecord = {
+  id: string
+  location_id: string
+  name: string
+  role: 'ORDERING' | 'KITCHEN' | 'COLLECTION'
+  connection: Record<string, unknown>
+  kds_station_ids: string[] | null
+  is_active: boolean
+  updated_at: string
+}
+
+type PrintConfigRecord = {
+  location_id: string
+  print_stages: {
+    ordering: { enabled: boolean; auto_on_bill: boolean }
+    kitchen: {
+      enabled: boolean
+      auto_on_submit: boolean
+      split_by_station: boolean
+      split_by_token: boolean
+    }
+    collection: {
+      enabled: boolean
+      auto_print_dine_in: boolean
+      auto_print_takeaway: boolean
+      trigger: 'at_counter' | 'packed' | 'manual_only'
+    }
+  }
+  updated_at: string | null
+}
+
+const printers = new Map<string, PrinterRecord>()
+let printerSeq = 0
+
+function defaultPrintConfig(): PrintConfigRecord {
+  return {
+    location_id: 'loc_test',
+    print_stages: {
+      ordering: { enabled: true, auto_on_bill: true },
+      kitchen: {
+        enabled: true,
+        auto_on_submit: true,
+        split_by_station: true,
+        split_by_token: true,
+      },
+      collection: {
+        enabled: true,
+        auto_print_dine_in: false,
+        auto_print_takeaway: true,
+        trigger: 'at_counter',
+      },
+    },
+    updated_at: null,
+  }
+}
+
+let printConfig = defaultPrintConfig()
+
+function resetPrintersStore() {
+  printers.clear()
+  printerSeq = 0
+  printConfig = defaultPrintConfig()
+}
+
 /** Default MSW handlers for hub API happy paths used in component tests. */
 export const handlers = [
   http.get('*/v1/status', () =>
@@ -1260,6 +1324,172 @@ export const handlers = [
     staffMembers.set(id, member)
     return HttpResponse.json({ staff: toStaffDto(member) })
   }),
+
+  http.get('*/v1/printers', ({ request }) => {
+    const includeInactive =
+      new URL(request.url).searchParams.get('include_inactive') === 'true'
+    const list = [...printers.values()].filter(
+      (printer) => includeInactive || printer.is_active,
+    )
+    return HttpResponse.json({ printers: list })
+  }),
+
+  http.post('*/v1/printers', async ({ request }) => {
+    const body = (await request.json()) as {
+      name?: string
+      role?: string
+      connection?: Record<string, unknown>
+      kds_station_ids?: string[] | null
+      is_active?: boolean
+    }
+    if (!body.name?.trim() || !body.role) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'name and role are required',
+            details: {},
+          },
+        },
+        { status: 400 },
+      )
+    }
+    if (
+      body.role !== 'ORDERING' &&
+      body.role !== 'KITCHEN' &&
+      body.role !== 'COLLECTION'
+    ) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid printer role',
+            details: { role: body.role },
+          },
+        },
+        { status: 400 },
+      )
+    }
+
+    const printer: PrinterRecord = {
+      id: `prn_${++printerSeq}`,
+      location_id: 'loc_test',
+      name: body.name.trim(),
+      role: body.role,
+      connection: body.connection ?? {},
+      kds_station_ids: body.kds_station_ids ?? null,
+      is_active: body.is_active ?? true,
+      updated_at: nowIso(),
+    }
+    printers.set(printer.id, printer)
+    return HttpResponse.json({ printer }, { status: 201 })
+  }),
+
+  http.patch('*/v1/printers/:id', async ({ params, request }) => {
+    const id = String(params.id)
+    const existing = printers.get(id)
+    if (!existing) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Printer not found',
+            details: { id },
+          },
+        },
+        { status: 404 },
+      )
+    }
+
+    const body = (await request.json()) as {
+      name?: string
+      role?: string
+      connection?: Record<string, unknown>
+      kds_station_ids?: string[] | null
+      is_active?: boolean
+    }
+
+    if (
+      body.role !== undefined &&
+      body.role !== 'ORDERING' &&
+      body.role !== 'KITCHEN' &&
+      body.role !== 'COLLECTION'
+    ) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid printer role',
+            details: { role: body.role },
+          },
+        },
+        { status: 400 },
+      )
+    }
+
+    const printer: PrinterRecord = {
+      ...existing,
+      name: body.name?.trim() || existing.name,
+      role: (body.role as PrinterRecord['role'] | undefined) ?? existing.role,
+      connection: body.connection ?? existing.connection,
+      kds_station_ids:
+        body.kds_station_ids !== undefined
+          ? body.kds_station_ids
+          : existing.kds_station_ids,
+      is_active: body.is_active ?? existing.is_active,
+      updated_at: nowIso(),
+    }
+    printers.set(id, printer)
+    return HttpResponse.json({ printer })
+  }),
+
+  http.get('*/v1/location/print-config', () =>
+    HttpResponse.json({ print_config: printConfig }),
+  ),
+
+  http.put('*/v1/location/print-config', async ({ request }) => {
+    const body = (await request.json()) as { print_stages?: unknown }
+    if (body.print_stages === undefined) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'print_stages is required',
+            details: {},
+          },
+        },
+        { status: 400 },
+      )
+    }
+
+    const stages = body.print_stages as PrintConfigRecord['print_stages']
+    if (
+      !stages?.ordering ||
+      !stages?.kitchen ||
+      !stages?.collection ||
+      typeof stages.ordering.enabled !== 'boolean' ||
+      typeof stages.kitchen.enabled !== 'boolean' ||
+      typeof stages.collection.enabled !== 'boolean'
+    ) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid print_stages config',
+            details: {},
+          },
+        },
+        { status: 400 },
+      )
+    }
+
+    printConfig = {
+      location_id: 'loc_test',
+      print_stages: stages,
+      updated_at: nowIso(),
+    }
+    return HttpResponse.json({ print_config: printConfig })
+  }),
 ]
 
 export {
@@ -1268,4 +1498,5 @@ export {
   resetTablesStore,
   resetMenuStore,
   resetStaffStore,
+  resetPrintersStore,
 }

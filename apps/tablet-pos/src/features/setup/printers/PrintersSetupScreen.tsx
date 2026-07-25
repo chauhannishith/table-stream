@@ -162,7 +162,6 @@ export function PrintersSetupScreen() {
 
           {!loading ? (
             <PrintStagesEditor
-              key={JSON.stringify(stages ?? DEFAULT_PRINT_STAGES)}
               initialStages={stages ?? DEFAULT_PRINT_STAGES}
               onSubmit={async (nextStages) => {
                 const saved = await updatePrintConfig(nextStages)
