@@ -77,16 +77,28 @@ type ModifierOptionRecord = {
   updated_at: string
 }
 
+type ZonePriceRecord = {
+  zone_id: string
+  price_cents: number
+  updated_at: string
+}
+
 const categories = new Map<string, CategoryRecord>()
 const menuItems = new Map<string, MenuItemRecord>()
 const menuTags = new Map<string, MenuTagRecord>()
 const modifierGroups = new Map<string, ModifierGroupRecord>()
 const modifierOptions = new Map<string, ModifierOptionRecord>()
+/** Key: `${menuItemId}:${zoneId}` */
+const menuItemZonePrices = new Map<string, ZonePriceRecord>()
 let categorySeq = 0
 let menuItemSeq = 0
 let menuTagSeq = 0
 let modifierGroupSeq = 0
 let modifierOptionSeq = 0
+
+function zonePriceKey(menuItemId: string, zoneId: string): string {
+  return `${menuItemId}:${zoneId}`
+}
 
 function resetMenuStore() {
   categories.clear()
@@ -94,6 +106,7 @@ function resetMenuStore() {
   menuTags.clear()
   modifierGroups.clear()
   modifierOptions.clear()
+  menuItemZonePrices.clear()
   categorySeq = 0
   menuItemSeq = 0
   menuTagSeq = 0
@@ -388,12 +401,78 @@ export const handlers = [
   }),
 
   http.get('*/v1/menu/items', ({ request }) => {
-    const includeInactive =
-      new URL(request.url).searchParams.get('include_inactive') === 'true'
-    const list = [...menuItems.values()].filter(
-      (item) => includeInactive || item.is_active,
-    )
+    const url = new URL(request.url)
+    const includeInactive = url.searchParams.get('include_inactive') === 'true'
+    const zoneId = url.searchParams.get('zone_id')
+    const list = [...menuItems.values()]
+      .filter((item) => includeInactive || item.is_active)
+      .map((item) => {
+        if (!zoneId) return item
+        const override = menuItemZonePrices.get(zonePriceKey(item.id, zoneId))
+        return {
+          ...item,
+          unit_price_cents: override?.price_cents ?? item.base_price_cents,
+        }
+      })
     return HttpResponse.json({ items: list })
+  }),
+
+  http.put('*/v1/menu/items/:id/zone-prices', async ({ params, request }) => {
+    const id = String(params.id)
+    const existing = menuItems.get(id)
+    if (!existing) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Menu item not found',
+            details: { id },
+          },
+        },
+        { status: 404 },
+      )
+    }
+
+    const body = (await request.json()) as {
+      prices?: Array<{ zone_id: string; price_cents: number }>
+    }
+    if (!Array.isArray(body?.prices)) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'prices array is required',
+            details: {},
+          },
+        },
+        { status: 400 },
+      )
+    }
+
+    for (const price of body.prices) {
+      if (!zones.has(price.zone_id)) {
+        return HttpResponse.json(
+          {
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Zone not found',
+              details: { zone_id: price.zone_id },
+            },
+          },
+          { status: 404 },
+        )
+      }
+      menuItemZonePrices.set(zonePriceKey(id, price.zone_id), {
+        zone_id: price.zone_id,
+        price_cents: price.price_cents,
+        updated_at: nowIso(),
+      })
+    }
+
+    const prices = [...menuItemZonePrices.entries()]
+      .filter(([key]) => key.startsWith(`${id}:`))
+      .map(([, row]) => row)
+    return HttpResponse.json({ prices })
   }),
 
   http.post('*/v1/menu/items', async ({ request }) => {

@@ -10,6 +10,7 @@ import { MenuItemsSetupScreen } from './features/setup/menu-items/MenuItemsSetup
 import { ModifiersSetupScreen } from './features/setup/modifiers/ModifiersSetupScreen'
 import { StaffSetupScreen } from './features/setup/staff/StaffSetupScreen'
 import { TagsSetupScreen } from './features/setup/tags/TagsSetupScreen'
+import { ZonePricesSetupScreen } from './features/setup/zone-prices/ZonePricesSetupScreen'
 import { ZonesSetupScreen } from './features/setup/zones/ZonesSetupScreen'
 import {
   COUNTER_SETUP_CATEGORIES_PATH,
@@ -17,6 +18,7 @@ import {
   COUNTER_SETUP_MODIFIERS_PATH,
   COUNTER_SETUP_STAFF_PATH,
   COUNTER_SETUP_TAGS_PATH,
+  COUNTER_SETUP_ZONE_PRICES_PATH,
   COUNTER_SETUP_ZONES_PATH,
   ROLE_ROUTES,
   resolveHomePath,
@@ -46,6 +48,10 @@ export function AppRoutes() {
       <Route
         path={COUNTER_SETUP_MODIFIERS_PATH}
         element={<ModifiersSetupScreen />}
+      />
+      <Route
+        path={COUNTER_SETUP_ZONE_PRICES_PATH}
+        element={<ZonePricesSetupScreen />}
       />
       <Route path={ROLE_ROUTES.WAITER} element={<WaiterHome />} />
       <Route path={ROLE_ROUTES.KITCHEN} element={<KitchenHome />} />
