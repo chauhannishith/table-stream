@@ -20,6 +20,8 @@ export const COUNTER_SETUP_CATEGORIES_PATH =
   `${ROLE_ROUTES.COUNTER}/setup/categories` as const
 export const COUNTER_SETUP_TAGS_PATH =
   `${ROLE_ROUTES.COUNTER}/setup/tags` as const
+export const COUNTER_SETUP_MODIFIERS_PATH =
+  `${ROLE_ROUTES.COUNTER}/setup/modifiers` as const
 
 export type RolePath = (typeof ROLE_ROUTES)[DeviceType]
 
