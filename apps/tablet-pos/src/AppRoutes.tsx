@@ -10,6 +10,7 @@ import { CategoriesSetupScreen } from './features/setup/categories/CategoriesSet
 import { MenuItemsSetupScreen } from './features/setup/menu-items/MenuItemsSetupScreen'
 import { ModifiersSetupScreen } from './features/setup/modifiers/ModifiersSetupScreen'
 import { StaffSetupScreen } from './features/setup/staff/StaffSetupScreen'
+import { TablesSetupScreen } from './features/setup/tables/TablesSetupScreen'
 import { TagsSetupScreen } from './features/setup/tags/TagsSetupScreen'
 import { ZonePricesSetupScreen } from './features/setup/zone-prices/ZonePricesSetupScreen'
 import { ZonesSetupScreen } from './features/setup/zones/ZonesSetupScreen'
@@ -19,6 +20,7 @@ import {
   COUNTER_SETUP_MENU_ITEMS_PATH,
   COUNTER_SETUP_MODIFIERS_PATH,
   COUNTER_SETUP_STAFF_PATH,
+  COUNTER_SETUP_TABLES_PATH,
   COUNTER_SETUP_TAGS_PATH,
   COUNTER_SETUP_ZONE_PRICES_PATH,
   COUNTER_SETUP_ZONES_PATH,
@@ -58,6 +60,10 @@ export function AppRoutes() {
       <Route
         path={COUNTER_SETUP_BILLING_PATH}
         element={<BillingSetupScreen />}
+      />
+      <Route
+        path={COUNTER_SETUP_TABLES_PATH}
+        element={<TablesSetupScreen />}
       />
       <Route path={ROLE_ROUTES.WAITER} element={<WaiterHome />} />
       <Route path={ROLE_ROUTES.KITCHEN} element={<KitchenHome />} />
