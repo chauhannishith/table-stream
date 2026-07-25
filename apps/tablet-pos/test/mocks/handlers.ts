@@ -40,16 +40,30 @@ type MenuItemRecord = {
   updated_at: string
 }
 
+type MenuTagRecord = {
+  id: string
+  location_id: string
+  code: string
+  label: string
+  sort_order: number
+  is_active: boolean
+  updated_at: string
+}
+
 const categories = new Map<string, CategoryRecord>()
 const menuItems = new Map<string, MenuItemRecord>()
+const menuTags = new Map<string, MenuTagRecord>()
 let categorySeq = 0
 let menuItemSeq = 0
+let menuTagSeq = 0
 
 function resetMenuStore() {
   categories.clear()
   menuItems.clear()
+  menuTags.clear()
   categorySeq = 0
   menuItemSeq = 0
+  menuTagSeq = 0
 }
 
 type StaffRecord = {
@@ -456,6 +470,110 @@ export const handlers = [
     }
     menuItems.set(id, item)
     return HttpResponse.json({ item })
+  }),
+
+  http.get('*/v1/menu/tags', ({ request }) => {
+    const includeInactive =
+      new URL(request.url).searchParams.get('include_inactive') === 'true'
+    const list = [...menuTags.values()].filter(
+      (tag) => includeInactive || tag.is_active,
+    )
+    return HttpResponse.json({ tags: list })
+  }),
+
+  http.post('*/v1/menu/tags', async ({ request }) => {
+    const body = (await request.json()) as { code?: string; label?: string }
+    if (!body.code?.trim() || !body.label?.trim()) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'code and label are required',
+            details: {},
+          },
+        },
+        { status: 400 },
+      )
+    }
+
+    const code = body.code.trim()
+    const duplicate = [...menuTags.values()].some((tag) => tag.code === code)
+    if (duplicate) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'CONFLICT',
+            message: 'Tag code already exists',
+            details: { code },
+          },
+        },
+        { status: 409 },
+      )
+    }
+
+    const tag: MenuTagRecord = {
+      id: `tag_${++menuTagSeq}`,
+      location_id: 'loc_test',
+      code,
+      label: body.label.trim(),
+      sort_order: 0,
+      is_active: true,
+      updated_at: nowIso(),
+    }
+    menuTags.set(tag.id, tag)
+    return HttpResponse.json({ tag }, { status: 201 })
+  }),
+
+  http.patch('*/v1/menu/tags/:id', async ({ params, request }) => {
+    const id = String(params.id)
+    const existing = menuTags.get(id)
+    if (!existing) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Tag not found',
+            details: { id },
+          },
+        },
+        { status: 404 },
+      )
+    }
+
+    const body = (await request.json()) as {
+      code?: string
+      label?: string
+      sort_order?: number
+      is_active?: boolean
+    }
+
+    const code = body.code?.trim() || existing.code
+    const duplicate = [...menuTags.values()].some(
+      (tag) => tag.id !== id && tag.code === code,
+    )
+    if (duplicate) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'CONFLICT',
+            message: 'Tag code already exists',
+            details: { code },
+          },
+        },
+        { status: 409 },
+      )
+    }
+
+    const tag: MenuTagRecord = {
+      ...existing,
+      code,
+      label: body.label?.trim() || existing.label,
+      sort_order: body.sort_order ?? existing.sort_order,
+      is_active: body.is_active ?? existing.is_active,
+      updated_at: nowIso(),
+    }
+    menuTags.set(id, tag)
+    return HttpResponse.json({ tag })
   }),
 
   http.get('*/v1/staff', ({ request }) => {
