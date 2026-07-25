@@ -5,6 +5,7 @@ import {
   resetBillingStore,
   resetMenuStore,
   resetStaffStore,
+  resetTablesStore,
   resetZonesStore,
 } from './mocks/handlers'
 import { server } from './mocks/server'
@@ -17,6 +18,7 @@ afterEach(() => {
   cleanup()
   server.resetHandlers()
   resetZonesStore()
+  resetTablesStore()
   resetMenuStore()
   resetStaffStore()
   resetBillingStore()
