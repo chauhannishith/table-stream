@@ -196,6 +196,32 @@ function parseTaxRules(raw: unknown): ParseTaxRulesResult {
   return { ok: true, rules }
 }
 
+type BillingConfigRecord = {
+  location_id: string
+  tax_rules: Record<string, number>
+  price_tax_mode: 'INCLUSIVE' | 'EXCLUSIVE'
+  service_charge_rules: Record<string, unknown>
+  tip_quick_actions: number[]
+  updated_at: string | null
+}
+
+function defaultBillingConfig(): BillingConfigRecord {
+  return {
+    location_id: 'loc_test',
+    tax_rules: {},
+    price_tax_mode: 'EXCLUSIVE',
+    service_charge_rules: {},
+    tip_quick_actions: [],
+    updated_at: null,
+  }
+}
+
+let billingConfig = defaultBillingConfig()
+
+function resetBillingStore() {
+  billingConfig = defaultBillingConfig()
+}
+
 /** Default MSW handlers for hub API happy paths used in component tests. */
 export const handlers = [
   http.get('*/v1/status', () =>
@@ -211,6 +237,55 @@ export const handlers = [
       subscription_status: 'ACTIVE',
     }),
   ),
+
+  http.get('*/v1/location/billing-config', () =>
+    HttpResponse.json({ billing_config: billingConfig }),
+  ),
+
+  http.put('*/v1/location/billing-config', async ({ request }) => {
+    const body = (await request.json()) as {
+      tax_rules?: unknown
+      price_tax_mode?: string
+      service_charge_rules?: Record<string, unknown>
+      tip_quick_actions?: number[]
+    }
+
+    const parsedTaxRules =
+      body.tax_rules === undefined
+        ? { ok: true as const, rules: billingConfig.tax_rules }
+        : parseTaxRules(body.tax_rules)
+    if (!parsedTaxRules.ok) return parsedTaxRules.response
+
+    if (
+      body.price_tax_mode !== undefined &&
+      body.price_tax_mode !== 'INCLUSIVE' &&
+      body.price_tax_mode !== 'EXCLUSIVE'
+    ) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid price_tax_mode',
+            details: {},
+          },
+        },
+        { status: 400 },
+      )
+    }
+
+    billingConfig = {
+      ...billingConfig,
+      tax_rules: parsedTaxRules.rules,
+      price_tax_mode:
+        body.price_tax_mode ?? billingConfig.price_tax_mode,
+      service_charge_rules:
+        body.service_charge_rules ?? billingConfig.service_charge_rules,
+      tip_quick_actions:
+        body.tip_quick_actions ?? billingConfig.tip_quick_actions,
+      updated_at: nowIso(),
+    }
+    return HttpResponse.json({ billing_config: billingConfig })
+  }),
 
   http.post('*/v1/devices/pair', async ({ request }) => {
     const body = (await request.json()) as {
@@ -1056,4 +1131,9 @@ export const handlers = [
   }),
 ]
 
-export { resetZonesStore, resetMenuStore, resetStaffStore }
+export {
+  resetBillingStore,
+  resetZonesStore,
+  resetMenuStore,
+  resetStaffStore,
+}
