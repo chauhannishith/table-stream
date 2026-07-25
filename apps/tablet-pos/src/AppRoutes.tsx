@@ -8,11 +8,13 @@ import {
 import { CategoriesSetupScreen } from './features/setup/categories/CategoriesSetupScreen'
 import { MenuItemsSetupScreen } from './features/setup/menu-items/MenuItemsSetupScreen'
 import { StaffSetupScreen } from './features/setup/staff/StaffSetupScreen'
+import { TagsSetupScreen } from './features/setup/tags/TagsSetupScreen'
 import { ZonesSetupScreen } from './features/setup/zones/ZonesSetupScreen'
 import {
   COUNTER_SETUP_CATEGORIES_PATH,
   COUNTER_SETUP_MENU_ITEMS_PATH,
   COUNTER_SETUP_STAFF_PATH,
+  COUNTER_SETUP_TAGS_PATH,
   COUNTER_SETUP_ZONES_PATH,
   ROLE_ROUTES,
   resolveHomePath,
@@ -38,6 +40,7 @@ export function AppRoutes() {
         path={COUNTER_SETUP_CATEGORIES_PATH}
         element={<CategoriesSetupScreen />}
       />
+      <Route path={COUNTER_SETUP_TAGS_PATH} element={<TagsSetupScreen />} />
       <Route path={ROLE_ROUTES.WAITER} element={<WaiterHome />} />
       <Route path={ROLE_ROUTES.KITCHEN} element={<KitchenHome />} />
       <Route path={ROLE_ROUTES.CUSTOMER} element={<CustomerHome />} />
