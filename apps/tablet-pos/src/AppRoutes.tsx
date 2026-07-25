@@ -5,6 +5,7 @@ import {
   KitchenHome,
   WaiterHome,
 } from './features/role-homes'
+import { BillingSetupScreen } from './features/setup/billing/BillingSetupScreen'
 import { CategoriesSetupScreen } from './features/setup/categories/CategoriesSetupScreen'
 import { MenuItemsSetupScreen } from './features/setup/menu-items/MenuItemsSetupScreen'
 import { ModifiersSetupScreen } from './features/setup/modifiers/ModifiersSetupScreen'
@@ -13,6 +14,7 @@ import { TagsSetupScreen } from './features/setup/tags/TagsSetupScreen'
 import { ZonePricesSetupScreen } from './features/setup/zone-prices/ZonePricesSetupScreen'
 import { ZonesSetupScreen } from './features/setup/zones/ZonesSetupScreen'
 import {
+  COUNTER_SETUP_BILLING_PATH,
   COUNTER_SETUP_CATEGORIES_PATH,
   COUNTER_SETUP_MENU_ITEMS_PATH,
   COUNTER_SETUP_MODIFIERS_PATH,
@@ -52,6 +54,10 @@ export function AppRoutes() {
       <Route
         path={COUNTER_SETUP_ZONE_PRICES_PATH}
         element={<ZonePricesSetupScreen />}
+      />
+      <Route
+        path={COUNTER_SETUP_BILLING_PATH}
+        element={<BillingSetupScreen />}
       />
       <Route path={ROLE_ROUTES.WAITER} element={<WaiterHome />} />
       <Route path={ROLE_ROUTES.KITCHEN} element={<KitchenHome />} />
