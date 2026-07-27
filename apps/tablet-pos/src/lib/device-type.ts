@@ -10,6 +10,10 @@ export const ROLE_ROUTES = {
   CUSTOMER: '/customer',
 } as const satisfies Record<DeviceType, `/${string}`>
 
+/** Counter operations (Phase F1.B takeaway MVP). */
+export const COUNTER_TAKEAWAY_NEW_PATH =
+  `${ROLE_ROUTES.COUNTER}/orders/new` as const
+
 /** Counter admin setup screens (Phase F1). */
 export const COUNTER_SETUP_ZONES_PATH = `${ROLE_ROUTES.COUNTER}/setup/zones` as const
 export const COUNTER_SETUP_MENU_ITEMS_PATH =

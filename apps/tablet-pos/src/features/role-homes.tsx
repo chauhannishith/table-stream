@@ -11,6 +11,7 @@ import {
   COUNTER_SETUP_TAGS_PATH,
   COUNTER_SETUP_ZONE_PRICES_PATH,
   COUNTER_SETUP_ZONES_PATH,
+  COUNTER_TAKEAWAY_NEW_PATH,
 } from '../lib/device-type'
 
 declare const __EDGE_API_URL__: string
@@ -43,6 +44,7 @@ export function CounterHome() {
       description="Takeaway intake, billing, and setup."
     >
       <nav className="setup-nav">
+        <Link to={COUNTER_TAKEAWAY_NEW_PATH}>New takeaway</Link>
         <Link to={COUNTER_SETUP_ZONES_PATH}>Setup: Zones</Link>
         <Link to={COUNTER_SETUP_STAFF_PATH}>Setup: Staff</Link>
         <Link to={COUNTER_SETUP_CATEGORIES_PATH}>Setup: Categories</Link>
