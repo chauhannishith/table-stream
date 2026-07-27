@@ -5,6 +5,7 @@ import {
   COUNTER_SETUP_CATEGORIES_PATH,
   COUNTER_SETUP_MENU_ITEMS_PATH,
   COUNTER_SETUP_MODIFIERS_PATH,
+  COUNTER_SETUP_PRINTERS_PATH,
   COUNTER_SETUP_STAFF_PATH,
   COUNTER_SETUP_TABLES_PATH,
   COUNTER_SETUP_TAGS_PATH,
@@ -51,6 +52,7 @@ export function CounterHome() {
         <Link to={COUNTER_SETUP_ZONE_PRICES_PATH}>Setup: Zone prices</Link>
         <Link to={COUNTER_SETUP_BILLING_PATH}>Setup: Billing</Link>
         <Link to={COUNTER_SETUP_TABLES_PATH}>Setup: Tables</Link>
+        <Link to={COUNTER_SETUP_PRINTERS_PATH}>Setup: Printers</Link>
       </nav>
     </RoleHome>
   )
