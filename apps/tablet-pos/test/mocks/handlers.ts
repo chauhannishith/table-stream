@@ -39,6 +39,40 @@ function resetTablesStore() {
   tableSeq = 0
 }
 
+type OrderRecord = {
+  id: string
+  location_id: string
+  order_type: 'TAKEAWAY' | 'DINE_IN'
+  table_id: string | null
+  zone_id: string | null
+  token_number: string | null
+  customer_name: string | null
+  customer_contact: string | null
+  status: 'DRAFT' | 'SUBMITTED' | 'IN_PROGRESS' | 'READY' | 'COMPLETED' | 'CANCELLED' | 'PAID'
+  fulfillment_status: 'IN_QUEUE' | 'PREPARING' | 'READY' | 'SERVED' | 'COLLECTED'
+  server_id: string | null
+  discount_type: string | null
+  discount_value: number | null
+  discount_cents: number
+  service_charge_cents: number
+  tip_cents: number
+  version: number
+  opened_at: string
+  closed_at: string | null
+  subtotal_cents: number
+  tax_cents: number
+  total_cents: number
+  lines: unknown[]
+}
+
+const orders = new Map<string, OrderRecord>()
+let orderSeq = 0
+
+function resetOrdersStore() {
+  orders.clear()
+  orderSeq = 0
+}
+
 type CategoryRecord = {
   id: string
   location_id: string
@@ -546,6 +580,83 @@ export const handlers = [
     }
     floorTables.set(table.id, table)
     return HttpResponse.json({ table }, { status: 201 })
+  }),
+
+  http.post('*/v1/orders', async ({ request }) => {
+    const body = (await request.json()) as {
+      order_type?: string
+      zone_id?: string
+      table_id?: string
+      customer_name?: string | null
+      customer_contact?: string | null
+    }
+
+    if (body.order_type === 'TAKEAWAY') {
+      const customerName = body.customer_name?.trim() ?? ''
+      if (!body.zone_id || !customerName) {
+        return HttpResponse.json(
+          {
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'zone_id and customer_name are required for TAKEAWAY',
+              details: {},
+            },
+          },
+          { status: 400 },
+        )
+      }
+      if (!zones.has(body.zone_id)) {
+        return HttpResponse.json(
+          {
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Zone not found',
+              details: { zone_id: body.zone_id },
+            },
+          },
+          { status: 404 },
+        )
+      }
+
+      const order: OrderRecord = {
+        id: `ord_${++orderSeq}`,
+        location_id: 'loc_test',
+        order_type: 'TAKEAWAY',
+        table_id: null,
+        zone_id: body.zone_id,
+        token_number: null,
+        customer_name: customerName,
+        customer_contact: body.customer_contact?.trim() || null,
+        status: 'DRAFT',
+        fulfillment_status: 'IN_QUEUE',
+        server_id: null,
+        discount_type: null,
+        discount_value: null,
+        discount_cents: 0,
+        service_charge_cents: 0,
+        tip_cents: 0,
+        version: 1,
+        opened_at: nowIso(),
+        closed_at: null,
+        subtotal_cents: 0,
+        tax_cents: 0,
+        total_cents: 0,
+        lines: [],
+      }
+      orders.set(order.id, order)
+      return HttpResponse.json({ order }, { status: 201 })
+    }
+
+    return HttpResponse.json(
+      {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Unsupported order_type in MSW stub',
+          details: {},
+        },
+      },
+      { status: 400 },
+    )
   }),
 
   http.patch('*/v1/tables/:id', async ({ params, request }) => {
@@ -1496,6 +1607,7 @@ export {
   resetBillingStore,
   resetZonesStore,
   resetTablesStore,
+  resetOrdersStore,
   resetMenuStore,
   resetStaffStore,
   resetPrintersStore,
