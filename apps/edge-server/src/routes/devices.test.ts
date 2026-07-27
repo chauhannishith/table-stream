@@ -57,6 +57,31 @@ describe('device pairing routes', () => {
     await app.close()
   })
 
+  it('POST /v1/devices/pairing-codes accepts a custom code in dev', async () => {
+    const app = await createTestApp()
+
+    const codeRes = await app.inject({
+      method: 'POST',
+      url: '/v1/devices/pairing-codes',
+      payload: { pairing_code: '654321' },
+    })
+    expect(codeRes.statusCode).toBe(200)
+    expect(codeRes.json().pairing_code).toBe('654321')
+
+    const pairRes = await app.inject({
+      method: 'POST',
+      url: '/v1/devices/pair',
+      payload: {
+        pairing_code: '654321',
+        device_type: 'COUNTER',
+        name: 'Front counter',
+      },
+    })
+    expect(pairRes.statusCode).toBe(200)
+
+    await app.close()
+  })
+
   it('pairing codes are single-use', async () => {
     const app = await createTestApp()
 

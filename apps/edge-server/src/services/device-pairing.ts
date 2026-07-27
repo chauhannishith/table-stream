@@ -5,6 +5,7 @@ import { AppError } from '../lib/errors.js'
 import {
   consumePairingCode,
   issuePairingCode,
+  registerPairingCode,
 } from '../lib/pairing-codes.js'
 import { createDevice, type DeviceRow } from '../repositories/devices.js'
 
@@ -36,9 +37,11 @@ function toDeviceDto(row: DeviceRow) {
 /** Issue a short-lived pairing code for admin display on the hub. */
 export function createDevicePairingCode(
   locationId: string,
-  ttlMs = 5 * 60 * 1000,
+  options: { code?: string; ttlMs?: number } = {},
 ) {
-  const record = issuePairingCode(locationId, ttlMs)
+  const record = options.code
+    ? registerPairingCode(locationId, options.code, options.ttlMs)
+    : issuePairingCode(locationId, options.ttlMs)
   return {
     pairing_code: record.code,
     expires_at: new Date(record.expiresAtMs).toISOString(),

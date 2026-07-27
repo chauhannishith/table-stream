@@ -34,6 +34,26 @@ export function issuePairingCode(
   return record
 }
 
+/** Register a specific 6-digit code (dev bootstrap — same value as staff PIN). */
+export function registerPairingCode(
+  locationId: string,
+  code: string,
+  ttlMs = 60 * 60 * 1000,
+): PairingCodeRecord {
+  pruneExpired()
+  const trimmed = code.trim()
+  if (!/^\d{6}$/.test(trimmed)) {
+    throw new Error('pairing code must be 6 digits')
+  }
+  const record: PairingCodeRecord = {
+    locationId,
+    code: trimmed,
+    expiresAtMs: Date.now() + ttlMs,
+  }
+  store.set(storageKey(locationId, trimmed), record)
+  return record
+}
+
 /** Consume a pairing code once; returns false when missing or expired. */
 export function consumePairingCode(
   locationId: string,

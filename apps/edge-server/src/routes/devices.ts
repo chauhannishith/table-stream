@@ -20,7 +20,28 @@ function parseDeviceType(value: string | undefined): DeviceType {
 }
 
 export const deviceRoutes: FastifyPluginAsync = async (app) => {
-  app.post('/devices/pairing-codes', async () => {
+  app.post('/devices/pairing-codes', async (request) => {
+    const body = (request.body ?? {}) as { pairing_code?: string }
+    const custom = body.pairing_code?.trim()
+    if (custom) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new AppError(
+          'FORBIDDEN',
+          'Custom pairing codes are dev-only',
+          403,
+        )
+      }
+      if (!/^\d{6}$/.test(custom)) {
+        throw new AppError(
+          'VALIDATION_ERROR',
+          'pairing_code must be 6 digits',
+          400,
+        )
+      }
+      return createDevicePairingCode(app.hubConfig.location_id, {
+        code: custom,
+      })
+    }
     return createDevicePairingCode(app.hubConfig.location_id)
   })
 

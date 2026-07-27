@@ -10,7 +10,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src --max-warnings 0",
     "test": "vitest run",
-    "db:migrate": "tsx src/db/migrate.ts"
+    "db:migrate": "tsx src/db/migrate.ts",
+    "bootstrap-admin": "tsx src/scripts/bootstrap-admin.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.1",
