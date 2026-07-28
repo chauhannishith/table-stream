@@ -73,6 +73,15 @@ function resetOrdersStore() {
   orderSeq = 0
 }
 
+function recalcOrderTotals(order: OrderRecord) {
+  order.subtotal_cents = order.lines.reduce(
+    (sum, entry) => sum + entry.unit_price_cents * entry.quantity,
+    0,
+  )
+  order.tax_cents = 0
+  order.total_cents = order.subtotal_cents
+}
+
 type OrderLineRecord = {
   id: string
   order_id: string
@@ -773,16 +782,142 @@ export const handlers = [
     }
 
     order.lines = [...order.lines, line]
-    order.subtotal_cents = order.lines.reduce(
-      (sum, entry) => sum + entry.unit_price_cents * entry.quantity,
-      0,
-    )
-    order.tax_cents = 0
-    order.total_cents = order.subtotal_cents
+    recalcOrderTotals(order)
     order.version += 1
     orders.set(order.id, order)
 
     return HttpResponse.json({ line }, { status: 201 })
+  }),
+
+  http.patch('*/v1/orders/:id/lines/:lineId', async ({ params, request }) => {
+    const orderId = String(params.id)
+    const lineId = String(params.lineId)
+    const order = orders.get(orderId)
+    if (!order) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Order not found',
+            details: { id: orderId },
+          },
+        },
+        { status: 404 },
+      )
+    }
+
+    const lineIndex = order.lines.findIndex((entry) => entry.id === lineId)
+    if (lineIndex === -1) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Order line not found',
+            details: { line_id: lineId },
+          },
+        },
+        { status: 404 },
+      )
+    }
+
+    const existing = order.lines[lineIndex]!
+    if (existing.is_submitted) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'CONFLICT',
+            message: 'Submitted lines cannot be edited',
+            details: { line_id: lineId },
+          },
+        },
+        { status: 409 },
+      )
+    }
+
+    const body = (await request.json()) as { quantity?: number }
+    const quantity = body.quantity ?? existing.quantity
+    if (quantity < 1) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'quantity must be at least 1',
+            details: {},
+          },
+        },
+        { status: 400 },
+      )
+    }
+
+    const updated: OrderLineRecord = {
+      ...existing,
+      quantity,
+      line_total_cents: existing.unit_price_cents * quantity,
+      version: existing.version + 1,
+    }
+    order.lines = [
+      ...order.lines.slice(0, lineIndex),
+      updated,
+      ...order.lines.slice(lineIndex + 1),
+    ]
+    recalcOrderTotals(order)
+    order.version += 1
+    orders.set(order.id, order)
+
+    return HttpResponse.json({ line: updated })
+  }),
+
+  http.delete('*/v1/orders/:id/lines/:lineId', ({ params }) => {
+    const orderId = String(params.id)
+    const lineId = String(params.lineId)
+    const order = orders.get(orderId)
+    if (!order) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Order not found',
+            details: { id: orderId },
+          },
+        },
+        { status: 404 },
+      )
+    }
+
+    const lineIndex = order.lines.findIndex((entry) => entry.id === lineId)
+    if (lineIndex === -1) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Order line not found',
+            details: { line_id: lineId },
+          },
+        },
+        { status: 404 },
+      )
+    }
+
+    const existing = order.lines[lineIndex]!
+    if (existing.is_submitted) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'CONFLICT',
+            message: 'Submitted lines cannot be removed',
+            details: { line_id: lineId },
+          },
+        },
+        { status: 409 },
+      )
+    }
+
+    order.lines = order.lines.filter((entry) => entry.id !== lineId)
+    recalcOrderTotals(order)
+    order.version += 1
+    orders.set(order.id, order)
+
+    return HttpResponse.json({ ok: true })
   }),
 
   http.patch('*/v1/tables/:id', async ({ params, request }) => {
