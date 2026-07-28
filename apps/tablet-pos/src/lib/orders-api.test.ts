@@ -3,7 +3,30 @@ import { HubApiError, type HubApiClient } from './api-client'
 import {
   createTakeawayOrder,
   normalizeCustomerName,
+  removeOrderLine,
+  updateOrderLine,
 } from './orders-api'
+
+const sampleLine = {
+  id: 'line_1',
+  order_id: 'ord_1',
+  menu_item_id: 'mi_1',
+  name: 'Burger',
+  quantity: 2,
+  unit_price_cents: 650,
+  tax_cents: 0,
+  line_total_cents: 1300,
+  modifiers: [],
+  tags: [],
+  special_instructions: null,
+  kds_station_id: null,
+  status: 'DRAFT',
+  is_submitted: false,
+  submitted_at: null,
+  submit_batch: 0,
+  kds_visible: false,
+  version: 1,
+}
 
 const sampleOrder = {
   id: 'ord_1',
@@ -110,5 +133,27 @@ describe('orders API helpers', () => {
       message: 'Zone not found',
       status: 404,
     })
+  })
+
+  it('updates a draft order line quantity', async () => {
+    const client = {
+      patch: vi.fn(async () => ({ line: { ...sampleLine, quantity: 3 } })),
+    } as unknown as HubApiClient
+
+    await expect(
+      updateOrderLine('ord_1', 'line_1', { quantity: 3 }, client),
+    ).resolves.toMatchObject({ quantity: 3 })
+    expect(client.patch).toHaveBeenCalledWith('/v1/orders/ord_1/lines/line_1', {
+      body: { quantity: 3 },
+    })
+  })
+
+  it('removes a draft order line', async () => {
+    const client = {
+      delete: vi.fn(async () => undefined),
+    } as unknown as HubApiClient
+
+    await expect(removeOrderLine('ord_1', 'line_1', client)).resolves.toBeUndefined()
+    expect(client.delete).toHaveBeenCalledWith('/v1/orders/ord_1/lines/line_1')
   })
 })

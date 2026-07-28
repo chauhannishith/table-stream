@@ -57,6 +57,10 @@ export type OrderLineWriteInput = {
   quantity?: number
 }
 
+export type OrderLineUpdateInput = {
+  quantity?: number
+}
+
 /** Trim takeaway customer name; hub requires non-empty for TAKEAWAY. */
 export function normalizeCustomerName(raw: string): string {
   const trimmed = raw.trim()
@@ -117,4 +121,34 @@ export async function addOrderLine(
     { body },
   )
   return result.line
+}
+
+/** Update a draft order line (hub rejects submitted lines with 409). */
+export async function updateOrderLine(
+  orderId: string,
+  lineId: string,
+  input: OrderLineUpdateInput,
+  client: HubApiClient = api,
+): Promise<OrderLine> {
+  const body: OrderLineUpdateInput = {}
+  if (input.quantity !== undefined) {
+    body.quantity = input.quantity
+  }
+
+  const result = await client.patch<{ line: OrderLine }>(
+    `/v1/orders/${encodeURIComponent(orderId)}/lines/${encodeURIComponent(lineId)}`,
+    { body },
+  )
+  return result.line
+}
+
+/** Remove a draft order line (hub rejects submitted lines with 409). */
+export async function removeOrderLine(
+  orderId: string,
+  lineId: string,
+  client: HubApiClient = api,
+): Promise<void> {
+  await client.delete(
+    `/v1/orders/${encodeURIComponent(orderId)}/lines/${encodeURIComponent(lineId)}`,
+  )
 }
