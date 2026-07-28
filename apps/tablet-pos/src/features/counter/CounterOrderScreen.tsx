@@ -49,7 +49,11 @@ export function CounterOrderScreen() {
   }, [orderId])
 
   async function handleAddItem(menuItemId: string) {
-    const quantity = Number(quantities[menuItemId] || '1')
+    const quantity = Number(quantities[menuItemId] ?? '1')
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      setError('Quantity must be at least 1')
+      return
+    }
     setSubmittingItemId(menuItemId)
     setError(null)
     try {
@@ -130,18 +134,21 @@ export function CounterOrderScreen() {
                           aria-label={`Quantity for ${item.name}`}
                           inputMode="numeric"
                           min="1"
-                          value={quantities[item.id] || '1'}
+                          value={quantities[item.id] ?? '1'}
                           onChange={(event) =>
                             setQuantities((current) => ({
                               ...current,
-                              [item.id]: event.target.value.replace(/\D/g, '') || '1',
+                              [item.id]: event.target.value.replace(/\D/g, ''),
                             }))
                           }
                         />
                       </label>
                       <button
                         type="button"
-                        disabled={submittingItemId === item.id}
+                        disabled={
+                          submittingItemId === item.id ||
+                          Number(quantities[item.id] ?? '1') < 1
+                        }
                         onClick={() => void handleAddItem(item.id)}
                       >
                         {submittingItemId === item.id ? 'Adding…' : 'Add'}
