@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { NewTakeawayScreen } from './features/counter/NewTakeawayScreen'
 import {
   CounterHome,
   CustomerHome,
@@ -26,6 +27,7 @@ import {
   COUNTER_SETUP_TAGS_PATH,
   COUNTER_SETUP_ZONE_PRICES_PATH,
   COUNTER_SETUP_ZONES_PATH,
+  COUNTER_TAKEAWAY_NEW_PATH,
   ROLE_ROUTES,
   resolveHomePath,
 } from './lib/device-type'
@@ -40,6 +42,10 @@ export function AppRoutes() {
     <Routes>
       <Route path="/" element={<HomeRedirect />} />
       <Route path={ROLE_ROUTES.COUNTER} element={<CounterHome />} />
+      <Route
+        path={COUNTER_TAKEAWAY_NEW_PATH}
+        element={<NewTakeawayScreen />}
+      />
       <Route path={COUNTER_SETUP_ZONES_PATH} element={<ZonesSetupScreen />} />
       <Route
         path={COUNTER_SETUP_MENU_ITEMS_PATH}
