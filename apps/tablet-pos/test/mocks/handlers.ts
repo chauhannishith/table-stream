@@ -62,7 +62,7 @@ type OrderRecord = {
   subtotal_cents: number
   tax_cents: number
   total_cents: number
-  lines: unknown[]
+  lines: OrderLineRecord[]
 }
 
 const orders = new Map<string, OrderRecord>()
@@ -71,6 +71,27 @@ let orderSeq = 0
 function resetOrdersStore() {
   orders.clear()
   orderSeq = 0
+}
+
+type OrderLineRecord = {
+  id: string
+  order_id: string
+  menu_item_id: string
+  name: string
+  quantity: number
+  unit_price_cents: number
+  tax_cents: number
+  line_total_cents: number
+  modifiers: unknown[]
+  tags: unknown[]
+  special_instructions: string | null
+  kds_station_id: string | null
+  status: string
+  is_submitted: boolean
+  submitted_at: string | null
+  submit_batch: number
+  kds_visible: boolean
+  version: number
 }
 
 type CategoryRecord = {
@@ -657,6 +678,111 @@ export const handlers = [
       },
       { status: 400 },
     )
+  }),
+
+  http.get('*/v1/orders/:id', ({ params }) => {
+    const id = String(params.id)
+    const order = orders.get(id)
+    if (!order) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Order not found',
+            details: { id },
+          },
+        },
+        { status: 404 },
+      )
+    }
+    return HttpResponse.json({ order })
+  }),
+
+  http.post('*/v1/orders/:id/lines', async ({ params, request }) => {
+    const id = String(params.id)
+    const order = orders.get(id)
+    if (!order) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Order not found',
+            details: { id },
+          },
+        },
+        { status: 404 },
+      )
+    }
+
+    const body = (await request.json()) as {
+      menu_item_id?: string
+      quantity?: number
+    }
+    if (!body.menu_item_id) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'menu_item_id is required',
+            details: {},
+          },
+        },
+        { status: 400 },
+      )
+    }
+
+    const item = menuItems.get(body.menu_item_id)
+    if (!item) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Menu item not found',
+            details: { menu_item_id: body.menu_item_id },
+          },
+        },
+        { status: 404 },
+      )
+    }
+
+    const quantity = body.quantity ?? 1
+    const zonePrice = order.zone_id
+      ? menuItemZonePrices.get(zonePriceKey(item.id, order.zone_id))
+      : undefined
+    const unitPriceCents = zonePrice?.price_cents ?? item.base_price_cents
+    const lineTotalCents = unitPriceCents * quantity
+    const line: OrderLineRecord = {
+      id: `line_${order.lines.length + 1}`,
+      order_id: order.id,
+      menu_item_id: item.id,
+      name: item.name,
+      quantity,
+      unit_price_cents: unitPriceCents,
+      tax_cents: 0,
+      line_total_cents: lineTotalCents,
+      modifiers: [],
+      tags: [],
+      special_instructions: null,
+      kds_station_id: item.kds_station_id,
+      status: 'DRAFT',
+      is_submitted: false,
+      submitted_at: null,
+      submit_batch: 0,
+      kds_visible: false,
+      version: 1,
+    }
+
+    order.lines = [...order.lines, line]
+    order.subtotal_cents = order.lines.reduce(
+      (sum, entry) => sum + entry.unit_price_cents * entry.quantity,
+      0,
+    )
+    order.tax_cents = 0
+    order.total_cents = order.subtotal_cents
+    order.version += 1
+    orders.set(order.id, order)
+
+    return HttpResponse.json({ line }, { status: 201 })
   }),
 
   http.patch('*/v1/tables/:id', async ({ params, request }) => {

@@ -1,19 +1,22 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { HubApiError } from '../../lib/api-client'
-import { ROLE_ROUTES } from '../../lib/device-type'
+import {
+  counterOrderDetailPath,
+  ROLE_ROUTES,
+} from '../../lib/device-type'
 import { createTakeawayOrder } from '../../lib/orders-api'
 import { listZones, type Zone } from '../../lib/zones-api'
 
 /** Counter ops: create a draft TAKEAWAY order (zone + customer name). */
 export function NewTakeawayScreen() {
+  const navigate = useNavigate()
   const [zones, setZones] = useState<Zone[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [zoneId, setZoneId] = useState('')
   const [customerName, setCustomerName] = useState('')
-  const [createdOrderId, setCreatedOrderId] = useState<string | null>(null)
 
   const activeZones = useMemo(
     () =>
@@ -50,14 +53,12 @@ export function NewTakeawayScreen() {
     event.preventDefault()
     setSubmitting(true)
     setError(null)
-    setCreatedOrderId(null)
     try {
       const order = await createTakeawayOrder({
         zone_id: zoneId,
         customer_name: customerName,
       })
-      setCreatedOrderId(order.id)
-      setCustomerName('')
+      navigate(counterOrderDetailPath(order.id))
     } catch (err) {
       if (err instanceof HubApiError || err instanceof Error) {
         setError(err.message)
@@ -119,11 +120,6 @@ export function NewTakeawayScreen() {
           </label>
 
           {error ? <p className="form-error">{error}</p> : null}
-          {createdOrderId ? (
-            <p role="status">
-              Order created: <strong>{createdOrderId}</strong>
-            </p>
-          ) : null}
 
           <div className="button-row">
             <button type="submit" disabled={submitting || !zoneId}>

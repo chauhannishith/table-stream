@@ -52,6 +52,11 @@ export type Order = {
   lines: OrderLine[]
 }
 
+export type OrderLineWriteInput = {
+  menu_item_id: string
+  quantity?: number
+}
+
 /** Trim takeaway customer name; hub requires non-empty for TAKEAWAY. */
 export function normalizeCustomerName(raw: string): string {
   const trimmed = raw.trim()
@@ -81,4 +86,35 @@ export async function createTakeawayOrder(
 
   const result = await client.post<{ order: Order }>('/v1/orders', { body })
   return result.order
+}
+
+/** Load one order with current draft lines and totals. */
+export async function getOrder(
+  orderId: string,
+  client: HubApiClient = api,
+): Promise<Order> {
+  const result = await client.get<{ order: Order }>(
+    `/v1/orders/${encodeURIComponent(orderId)}`,
+  )
+  return result.order
+}
+
+/** Add one menu item line to a draft order. */
+export async function addOrderLine(
+  orderId: string,
+  input: OrderLineWriteInput,
+  client: HubApiClient = api,
+): Promise<OrderLine> {
+  const body: OrderLineWriteInput = {
+    menu_item_id: input.menu_item_id,
+  }
+  if (input.quantity !== undefined) {
+    body.quantity = input.quantity
+  }
+
+  const result = await client.post<{ line: OrderLine }>(
+    `/v1/orders/${encodeURIComponent(orderId)}/lines`,
+    { body },
+  )
+  return result.line
 }
