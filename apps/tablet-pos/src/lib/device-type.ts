@@ -13,6 +13,8 @@ export const ROLE_ROUTES = {
 /** Counter operations (Phase F1.B takeaway MVP). */
 export const COUNTER_TAKEAWAY_NEW_PATH =
   `${ROLE_ROUTES.COUNTER}/orders/new` as const
+export const COUNTER_ORDER_DETAIL_PATH =
+  `${ROLE_ROUTES.COUNTER}/orders/:orderId` as const
 
 /** Counter admin setup screens (Phase F1). */
 export const COUNTER_SETUP_ZONES_PATH = `${ROLE_ROUTES.COUNTER}/setup/zones` as const
@@ -67,4 +69,9 @@ export function resolveHomePath(): RolePath {
   const deviceType = getStoredDeviceType()
   if (!deviceType) return defaultHomePath()
   return pathForDeviceType(deviceType)
+}
+
+/** Build the counter order detail route for one order id. */
+export function counterOrderDetailPath(orderId: string): string {
+  return `${ROLE_ROUTES.COUNTER}/orders/${encodeURIComponent(orderId)}`
 }
