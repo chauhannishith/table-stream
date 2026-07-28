@@ -90,8 +90,8 @@ export function CounterOrderScreen() {
     }
   }
 
-  async function handleUpdateLine(lineId: string) {
-    const quantity = Number(lineQuantities[lineId] ?? '1')
+  async function handleUpdateLine(lineId: string, currentQuantity: number) {
+    const quantity = Number(lineQuantities[lineId] ?? String(currentQuantity))
     if (!Number.isInteger(quantity) || quantity < 1) {
       setError('Quantity must be at least 1')
       return
@@ -256,7 +256,7 @@ export function CounterOrderScreen() {
                             updatingLineId === line.id ||
                             Number(lineQuantities[line.id] ?? String(line.quantity)) < 1
                           }
-                          onClick={() => void handleUpdateLine(line.id)}
+                          onClick={() => void handleUpdateLine(line.id, line.quantity)}
                         >
                           {updatingLineId === line.id ? 'Saving…' : 'Update'}
                         </button>
