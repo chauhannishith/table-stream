@@ -61,6 +61,12 @@ export type OrderLineUpdateInput = {
   quantity?: number
 }
 
+export type OrderSubmission = {
+  order: Order
+  submit_batch: number
+  lines: OrderLine[]
+}
+
 /** Trim takeaway customer name; hub requires non-empty for TAKEAWAY. */
 export function normalizeCustomerName(raw: string): string {
   const trimmed = raw.trim()
@@ -151,4 +157,25 @@ export async function removeOrderLine(
   await client.delete(
     `/v1/orders/${encodeURIComponent(orderId)}/lines/${encodeURIComponent(lineId)}`,
   )
+}
+
+/**
+ * Submit draft lines to kitchen; takeaway orders receive a token on first submit.
+ * Hub returns 400 when there are no draft lines.
+ */
+export async function submitOrder(
+  orderId: string,
+  options: { idempotencyKey?: string } = {},
+  client: HubApiClient = api,
+): Promise<OrderSubmission> {
+  const headers: Record<string, string> = {}
+  if (options.idempotencyKey) {
+    headers['Idempotency-Key'] = options.idempotencyKey
+  }
+
+  const result = await client.post<{ submission: OrderSubmission }>(
+    `/v1/orders/${encodeURIComponent(orderId)}/submit`,
+    { headers },
+  )
+  return result.submission
 }
