@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { HubApiError } from '../../lib/api-client'
 import { centsToPriceString, type MenuItem } from '../../lib/menu-api'
 import { ROLE_ROUTES } from '../../lib/device-type'
-import { addOrderLine, getOrder, removeOrderLine, updateOrderLine, type Order } from '../../lib/orders-api'
+import { addOrderLine, getOrder, removeOrderLine, submitOrder, updateOrderLine, type Order } from '../../lib/orders-api'
 import { listMenuItemsForZone } from '../../lib/zone-prices-api'
 
 /** Counter ops: load one draft order before menu selection. */
@@ -15,6 +15,7 @@ export function CounterOrderScreen() {
   const [submittingItemId, setSubmittingItemId] = useState<string | null>(null)
   const [updatingLineId, setUpdatingLineId] = useState<string | null>(null)
   const [removingLineId, setRemovingLineId] = useState<string | null>(null)
+  const [submittingOrder, setSubmittingOrder] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [quantities, setQuantities] = useState<Record<string, string>>({})
   const [lineQuantities, setLineQuantities] = useState<Record<string, string>>({})
@@ -22,6 +23,10 @@ export function CounterOrderScreen() {
   const activeItems = useMemo(
     () => items.filter((item) => item.is_active),
     [items],
+  )
+  const draftLineCount = useMemo(
+    () => order?.lines.filter((line) => !line.is_submitted).length ?? 0,
+    [order?.lines],
   )
 
   async function loadOrderAndMenu() {
@@ -129,6 +134,25 @@ export function CounterOrderScreen() {
     }
   }
 
+  async function handleSubmitOrder() {
+    setSubmittingOrder(true)
+    setError(null)
+    try {
+      await submitOrder(orderId, {
+        idempotencyKey: crypto.randomUUID(),
+      })
+      await loadOrderAndMenu()
+    } catch (err) {
+      if (err instanceof HubApiError || err instanceof Error) {
+        setError(err.message)
+      } else {
+        setError('Failed to submit order')
+      }
+    } finally {
+      setSubmittingOrder(false)
+    }
+  }
+
   return (
     <main className="shell">
       <header className="page-header">
@@ -160,9 +184,23 @@ export function CounterOrderScreen() {
             <h2>{order.customer_name || 'Draft takeaway'}</h2>
             <p className="muted">Order ID: {order.id}</p>
             <p className="muted">Zone: {order.zone_id || 'Unassigned'}</p>
+            {order.token_number ? (
+              <p>
+                Token: <strong>{order.token_number}</strong>
+              </p>
+            ) : null}
             <p className="muted">
               Subtotal: {centsToPriceString(order.subtotal_cents)}
             </p>
+            <div className="button-row">
+              <button
+                type="button"
+                disabled={submittingOrder || draftLineCount < 1}
+                onClick={() => void handleSubmitOrder()}
+              >
+                {submittingOrder ? 'Submitting…' : 'Submit to kitchen'}
+              </button>
+            </div>
           </section>
 
           <section className="card">
