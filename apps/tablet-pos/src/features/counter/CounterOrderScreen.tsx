@@ -3,7 +3,17 @@ import { Link, useParams } from 'react-router-dom'
 import { HubApiError } from '../../lib/api-client'
 import { centsToPriceString, type MenuItem } from '../../lib/menu-api'
 import { ROLE_ROUTES } from '../../lib/device-type'
-import { addOrderLine, getOrder, removeOrderLine, submitOrder, updateOrderLine, type Order } from '../../lib/orders-api'
+import {
+  addOrderLine,
+  finalizeOrderBill,
+  getOrder,
+  previewOrderBill,
+  removeOrderLine,
+  submitOrder,
+  updateOrderLine,
+  type BillPreview,
+  type Order,
+} from '../../lib/orders-api'
 import { listMenuItemsForZone } from '../../lib/zone-prices-api'
 
 /** Counter ops: load one draft order before menu selection. */
@@ -16,9 +26,15 @@ export function CounterOrderScreen() {
   const [updatingLineId, setUpdatingLineId] = useState<string | null>(null)
   const [removingLineId, setRemovingLineId] = useState<string | null>(null)
   const [submittingOrder, setSubmittingOrder] = useState(false)
+  const [previewingBill, setPreviewingBill] = useState(false)
+  const [lockingBill, setLockingBill] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [quantities, setQuantities] = useState<Record<string, string>>({})
   const [lineQuantities, setLineQuantities] = useState<Record<string, string>>({})
+  const [discountType, setDiscountType] = useState<'' | 'PERCENT' | 'FIXED'>('')
+  const [discountValue, setDiscountValue] = useState('')
+  const [tipCents, setTipCents] = useState('')
+  const [billPreview, setBillPreview] = useState<BillPreview | null>(null)
 
   const activeItems = useMemo(
     () => items.filter((item) => item.is_active),
@@ -28,6 +44,34 @@ export function CounterOrderScreen() {
     () => order?.lines.filter((line) => !line.is_submitted).length ?? 0,
     [order?.lines],
   )
+  const billLocked =
+    order?.status === 'CHECK_PRINTED' ||
+    order?.status === 'PAID' ||
+    order?.status === 'VOID'
+
+  function buildBillInput() {
+    const input: {
+      discount_type?: 'PERCENT' | 'FIXED'
+      discount_value?: number
+      tip_cents?: number
+    } = {}
+    if (discountType) {
+      const value = Number(discountValue)
+      if (!Number.isFinite(value) || value < 0) {
+        throw new Error('Discount value must be zero or greater')
+      }
+      input.discount_type = discountType
+      input.discount_value = value
+    }
+    if (tipCents !== '') {
+      const tip = Number(tipCents)
+      if (!Number.isInteger(tip) || tip < 0) {
+        throw new Error('Tip must be a whole number of cents')
+      }
+      input.tip_cents = tip
+    }
+    return input
+  }
 
   async function loadOrderAndMenu() {
     setLoading(true)
@@ -150,6 +194,41 @@ export function CounterOrderScreen() {
       }
     } finally {
       setSubmittingOrder(false)
+    }
+  }
+
+  async function handlePreviewBill() {
+    setPreviewingBill(true)
+    setError(null)
+    try {
+      const preview = await previewOrderBill(orderId, buildBillInput())
+      setBillPreview(preview)
+    } catch (err) {
+      if (err instanceof HubApiError || err instanceof Error) {
+        setError(err.message)
+      } else {
+        setError('Failed to preview bill')
+      }
+    } finally {
+      setPreviewingBill(false)
+    }
+  }
+
+  async function handleLockBill() {
+    setLockingBill(true)
+    setError(null)
+    try {
+      await finalizeOrderBill(orderId, buildBillInput())
+      setBillPreview(null)
+      await loadOrderAndMenu()
+    } catch (err) {
+      if (err instanceof HubApiError || err instanceof Error) {
+        setError(err.message)
+      } else {
+        setError('Failed to lock bill')
+      }
+    } finally {
+      setLockingBill(false)
     }
   }
 
@@ -313,6 +392,121 @@ export function CounterOrderScreen() {
               </ul>
             )}
           </section>
+
+          {order.lines.length > 0 ? (
+            <section className="card">
+              <h2>Bill</h2>
+              {billLocked ? (
+                <>
+                  <p className="muted">Status: {order.status}</p>
+                  <p className="muted">
+                    Subtotal: {centsToPriceString(order.subtotal_cents)}
+                  </p>
+                  <p className="muted">
+                    Discount: {centsToPriceString(order.discount_cents)}
+                  </p>
+                  <p className="muted">
+                    Tax: {centsToPriceString(order.tax_cents)}
+                  </p>
+                  <p className="muted">
+                    Tip: {centsToPriceString(order.tip_cents)}
+                  </p>
+                  <p>
+                    Total: <strong>{centsToPriceString(order.total_cents)}</strong>
+                  </p>
+                </>
+              ) : (
+                <>
+                  <label className="field">
+                    <span>Discount type</span>
+                    <select
+                      aria-label="Discount type"
+                      value={discountType}
+                      onChange={(event) => {
+                        setDiscountType(
+                          event.target.value as '' | 'PERCENT' | 'FIXED',
+                        )
+                        setBillPreview(null)
+                      }}
+                    >
+                      <option value="">None</option>
+                      <option value="PERCENT">Percent</option>
+                      <option value="FIXED">Fixed (cents)</option>
+                    </select>
+                  </label>
+                  {discountType ? (
+                    <label className="field">
+                      <span>
+                        {discountType === 'PERCENT'
+                          ? 'Discount %'
+                          : 'Discount cents'}
+                      </span>
+                      <input
+                        aria-label="Discount value"
+                        inputMode="decimal"
+                        value={discountValue}
+                        onChange={(event) => {
+                          setDiscountValue(event.target.value.replace(/[^\d.]/g, ''))
+                          setBillPreview(null)
+                        }}
+                      />
+                    </label>
+                  ) : null}
+                  <label className="field">
+                    <span>Tip (cents)</span>
+                    <input
+                      aria-label="Tip in cents"
+                      inputMode="numeric"
+                      value={tipCents}
+                      onChange={(event) => {
+                        setTipCents(event.target.value.replace(/\D/g, ''))
+                        setBillPreview(null)
+                      }}
+                    />
+                  </label>
+                  <div className="button-row">
+                    <button
+                      type="button"
+                      disabled={previewingBill || lockingBill}
+                      onClick={() => void handlePreviewBill()}
+                    >
+                      {previewingBill ? 'Previewing…' : 'Preview bill'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={lockingBill || previewingBill}
+                      onClick={() => void handleLockBill()}
+                    >
+                      {lockingBill ? 'Locking…' : 'Lock bill'}
+                    </button>
+                  </div>
+                  {billPreview ? (
+                    <div>
+                      <p className="muted">
+                        Subtotal: {centsToPriceString(billPreview.subtotal_cents)}
+                      </p>
+                      <p className="muted">
+                        Discount:{' '}
+                        {centsToPriceString(billPreview.discount_cents)}
+                      </p>
+                      <p className="muted">
+                        Tax: {centsToPriceString(billPreview.tax_cents)}
+                      </p>
+                      <p className="muted">
+                        Tip: {centsToPriceString(billPreview.tip_cents)}
+                      </p>
+                      <p>
+                        Total:{' '}
+                        <strong>
+                          {centsToPriceString(billPreview.total_cents)}
+                        </strong>
+                      </p>
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </section>
+          ) : null}
         </>
       ) : null}
     </main>
