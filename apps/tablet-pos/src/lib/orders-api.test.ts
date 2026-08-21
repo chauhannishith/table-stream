@@ -4,6 +4,7 @@ import {
   createTakeawayOrder,
   normalizeCustomerName,
   removeOrderLine,
+  submitOrder,
   updateOrderLine,
 } from './orders-api'
 
@@ -155,5 +156,48 @@ describe('orders API helpers', () => {
 
     await expect(removeOrderLine('ord_1', 'line_1', client)).resolves.toBeUndefined()
     expect(client.delete).toHaveBeenCalledWith('/v1/orders/ord_1/lines/line_1')
+  })
+
+  it('submits draft lines and returns token on takeaway order', async () => {
+    const submission = {
+      order: {
+        ...sampleOrder,
+        status: 'SUBMITTED' as const,
+        token_number: 'T-001',
+      },
+      submit_batch: 1,
+      lines: [{ ...sampleLine, is_submitted: true }],
+    }
+    const client = {
+      post: vi.fn(async () => ({ submission })),
+    } as unknown as HubApiClient
+
+    await expect(
+      submitOrder('ord_1', { idempotencyKey: 'submit-1' }, client),
+    ).resolves.toEqual(submission)
+    expect(client.post).toHaveBeenCalledWith('/v1/orders/ord_1/submit', {
+      headers: { 'Idempotency-Key': 'submit-1' },
+    })
+  })
+
+  it('surfaces hub VALIDATION_ERROR when no draft lines', async () => {
+    const client = {
+      post: vi.fn(async () => {
+        throw new HubApiError(
+          {
+            code: 'VALIDATION_ERROR',
+            message: 'No draft lines to submit',
+            details: { order_id: 'ord_1' },
+          },
+          400,
+        )
+      }),
+    } as unknown as HubApiClient
+
+    await expect(submitOrder('ord_1', {}, client)).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      message: 'No draft lines to submit',
+      status: 400,
+    })
   })
 })

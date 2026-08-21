@@ -67,10 +67,12 @@ type OrderRecord = {
 
 const orders = new Map<string, OrderRecord>()
 let orderSeq = 0
+let tokenSeq = 0
 
 function resetOrdersStore() {
   orders.clear()
   orderSeq = 0
+  tokenSeq = 0
 }
 
 function recalcOrderTotals(order: OrderRecord) {
@@ -918,6 +920,70 @@ export const handlers = [
     orders.set(order.id, order)
 
     return HttpResponse.json({ ok: true })
+  }),
+
+  http.post('*/v1/orders/:id/submit', ({ params }) => {
+    const id = String(params.id)
+    const order = orders.get(id)
+    if (!order) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Order not found',
+            details: { id },
+          },
+        },
+        { status: 404 },
+      )
+    }
+
+    const drafts = order.lines.filter((line) => !line.is_submitted)
+    if (drafts.length === 0) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'No draft lines to submit',
+            details: { order_id: id },
+          },
+        },
+        { status: 400 },
+      )
+    }
+
+    const submitBatch =
+      Math.max(0, ...order.lines.map((line) => line.submit_batch)) + 1
+    const submittedAt = nowIso()
+    const submittedLines = drafts.map((line) => ({
+      ...line,
+      status: 'QUEUED',
+      is_submitted: true,
+      submitted_at: submittedAt,
+      submit_batch: submitBatch,
+      kds_visible: true,
+      version: line.version + 1,
+    }))
+
+    order.lines = order.lines.map((line) => {
+      const updated = submittedLines.find((entry) => entry.id === line.id)
+      return updated ?? line
+    })
+    if (order.order_type === 'TAKEAWAY' && !order.token_number) {
+      tokenSeq += 1
+      order.token_number = `T-${String(tokenSeq).padStart(3, '0')}`
+    }
+    order.status = order.status === 'DRAFT' ? 'SUBMITTED' : order.status
+    order.version += 1
+    orders.set(order.id, order)
+
+    return HttpResponse.json({
+      submission: {
+        order,
+        submit_batch: submitBatch,
+        lines: submittedLines,
+      },
+    })
   }),
 
   http.patch('*/v1/tables/:id', async ({ params, request }) => {

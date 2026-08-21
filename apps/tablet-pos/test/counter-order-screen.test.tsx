@@ -97,4 +97,25 @@ describe('CounterOrderScreen (MSW)', () => {
     expect(await screen.findByText('No lines yet.')).toBeInTheDocument()
     expect(screen.getByText(/Subtotal:\s*0.00/)).toBeInTheDocument()
   })
+
+  it('submits draft lines and displays takeaway token', async () => {
+    const { order } = await seedTakeawayOrder()
+
+    const { user } = createTestRender(<AppRoutes />, {
+      route: counterOrderDetailPath(order.id),
+    })
+
+    expect(await screen.findByText('Burger')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Submit to kitchen' })).toBeDisabled()
+
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+    expect(await screen.findByText(/Subtotal:\s*6.50/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Submit to kitchen' }))
+
+    expect(await screen.findByText(/Token:/)).toBeInTheDocument()
+    expect(screen.getByText('T-001')).toBeInTheDocument()
+    expect(screen.getByText('Submitted')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Submit to kitchen' })).toBeDisabled()
+  })
 })
