@@ -57,7 +57,11 @@ export function CounterOrderScreen() {
     } = {}
     if (discountType) {
       const value = Number(discountValue)
-      if (!Number.isFinite(value) || value < 0) {
+      if (discountType === 'FIXED') {
+        if (!Number.isInteger(value) || value < 0) {
+          throw new Error('Fixed discount must be a whole number of cents')
+        }
+      } else if (!Number.isFinite(value) || value < 0) {
         throw new Error('Discount value must be zero or greater')
       }
       input.discount_type = discountType
@@ -423,9 +427,14 @@ export function CounterOrderScreen() {
                       aria-label="Discount type"
                       value={discountType}
                       onChange={(event) => {
-                        setDiscountType(
-                          event.target.value as '' | 'PERCENT' | 'FIXED',
-                        )
+                        const nextType = event.target.value as
+                          | ''
+                          | 'PERCENT'
+                          | 'FIXED'
+                        setDiscountType(nextType)
+                        if (nextType === 'FIXED') {
+                          setDiscountValue((current) => current.replace(/\D/g, ''))
+                        }
                         setBillPreview(null)
                       }}
                     >
@@ -443,10 +452,14 @@ export function CounterOrderScreen() {
                       </span>
                       <input
                         aria-label="Discount value"
-                        inputMode="decimal"
+                        inputMode={discountType === 'FIXED' ? 'numeric' : 'decimal'}
                         value={discountValue}
                         onChange={(event) => {
-                          setDiscountValue(event.target.value.replace(/[^\d.]/g, ''))
+                          const next =
+                            discountType === 'FIXED'
+                              ? event.target.value.replace(/\D/g, '')
+                              : event.target.value.replace(/[^\d.]/g, '')
+                          setDiscountValue(next)
                           setBillPreview(null)
                         }}
                       />
