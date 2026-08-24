@@ -6,13 +6,16 @@ import { ROLE_ROUTES } from '../../lib/device-type'
 import {
   addOrderLine,
   finalizeOrderBill,
+  getInvoice,
   getOrder,
+  issueOrderInvoice,
   previewOrderBill,
   recordOrderPayment,
   removeOrderLine,
   submitOrder,
   updateOrderLine,
   type BillPreview,
+  type Invoice,
   type Order,
   type TenderType,
 } from '../../lib/orders-api'
@@ -31,6 +34,8 @@ export function CounterOrderScreen() {
   const [previewingBill, setPreviewingBill] = useState(false)
   const [lockingBill, setLockingBill] = useState(false)
   const [recordingPayment, setRecordingPayment] = useState(false)
+  const [issuingInvoice, setIssuingInvoice] = useState(false)
+  const [reprintingInvoice, setReprintingInvoice] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [quantities, setQuantities] = useState<Record<string, string>>({})
   const [lineQuantities, setLineQuantities] = useState<Record<string, string>>({})
@@ -39,6 +44,7 @@ export function CounterOrderScreen() {
   const [tipCents, setTipCents] = useState('')
   const [billPreview, setBillPreview] = useState<BillPreview | null>(null)
   const [tenderType, setTenderType] = useState<TenderType>('CASH')
+  const [invoice, setInvoice] = useState<Invoice | null>(null)
 
   const activeItems = useMemo(
     () => items.filter((item) => item.is_active),
@@ -106,6 +112,7 @@ export function CounterOrderScreen() {
 
   useEffect(() => {
     setTenderType('CASH')
+    setInvoice(null)
     void loadOrderAndMenu()
   }, [orderId])
 
@@ -255,6 +262,58 @@ export function CounterOrderScreen() {
       }
     } finally {
       setRecordingPayment(false)
+    }
+  }
+
+  async function handleIssueInvoice() {
+    setIssuingInvoice(true)
+    setError(null)
+    try {
+      setInvoice(await issueOrderInvoice(orderId))
+    } catch (err) {
+      if (
+        err instanceof HubApiError &&
+        err.code === 'CONFLICT' &&
+        typeof err.details.invoice_id === 'string'
+      ) {
+        try {
+          setInvoice(await getInvoice(err.details.invoice_id))
+          return
+        } catch (reloadErr) {
+          if (reloadErr instanceof HubApiError || reloadErr instanceof Error) {
+            setError(reloadErr.message)
+          } else {
+            setError('Failed to load invoice')
+          }
+          return
+        }
+      }
+      if (err instanceof HubApiError || err instanceof Error) {
+        setError(err.message)
+      } else {
+        setError('Failed to issue invoice')
+      }
+    } finally {
+      setIssuingInvoice(false)
+    }
+  }
+
+  async function handleReprintInvoice() {
+    if (!invoice) {
+      return
+    }
+    setReprintingInvoice(true)
+    setError(null)
+    try {
+      setInvoice(await getInvoice(invoice.id))
+    } catch (err) {
+      if (err instanceof HubApiError || err instanceof Error) {
+        setError(err.message)
+      } else {
+        setError('Failed to reprint invoice')
+      }
+    } finally {
+      setReprintingInvoice(false)
     }
   }
 
@@ -574,6 +633,78 @@ export function CounterOrderScreen() {
                     </button>
                   </div>
                 </>
+              )}
+            </section>
+          ) : null}
+
+          {order.status === 'PAID' ? (
+            <section className="card">
+              <h2>Invoice</h2>
+              {invoice ? (
+                <>
+                  <p>
+                    <strong>{invoice.invoice_number}</strong>
+                  </p>
+                  {invoice.token_number ? (
+                    <p className="muted">Token: {invoice.token_number}</p>
+                  ) : null}
+                  <p>
+                    {invoice.business_snapshot.legal_name ||
+                      invoice.business_snapshot.trade_name ||
+                      'Business'}
+                  </p>
+                  {invoice.business_snapshot.gst_number ? (
+                    <p className="muted">
+                      GST: {invoice.business_snapshot.gst_number}
+                    </p>
+                  ) : null}
+                  {invoice.business_snapshot.phone ? (
+                    <p className="muted">{invoice.business_snapshot.phone}</p>
+                  ) : null}
+                  {invoice.business_snapshot.email ? (
+                    <p className="muted">{invoice.business_snapshot.email}</p>
+                  ) : null}
+                  <p className="muted">
+                    Subtotal: {centsToPriceString(invoice.subtotal_cents)}
+                  </p>
+                  <p className="muted">
+                    Discount: {centsToPriceString(invoice.discount_cents)}
+                  </p>
+                  {Object.entries(invoice.tax_breakdown).map(([name, cents]) => (
+                    <p key={name} className="muted">
+                      {name.toUpperCase()}: {centsToPriceString(cents)}
+                    </p>
+                  ))}
+                  <p className="muted">
+                    Tax: {centsToPriceString(invoice.tax_cents)}
+                  </p>
+                  <p className="muted">
+                    Tip: {centsToPriceString(invoice.tip_cents)}
+                  </p>
+                  <p>
+                    Total:{' '}
+                    <strong>{centsToPriceString(invoice.total_cents)}</strong>
+                  </p>
+                  <div className="button-row">
+                    <button
+                      type="button"
+                      disabled={reprintingInvoice}
+                      onClick={() => void handleReprintInvoice()}
+                    >
+                      {reprintingInvoice ? 'Loading…' : 'Reprint'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="button-row">
+                  <button
+                    type="button"
+                    disabled={issuingInvoice}
+                    onClick={() => void handleIssueInvoice()}
+                  >
+                    {issuingInvoice ? 'Issuing…' : 'Issue invoice'}
+                  </button>
+                </div>
               )}
             </section>
           ) : null}
