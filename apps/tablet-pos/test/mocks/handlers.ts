@@ -68,11 +68,13 @@ type OrderRecord = {
 const orders = new Map<string, OrderRecord>()
 let orderSeq = 0
 let tokenSeq = 0
+let paymentSeq = 0
 
 function resetOrdersStore() {
   orders.clear()
   orderSeq = 0
   tokenSeq = 0
+  paymentSeq = 0
 }
 
 function recalcOrderTotals(order: OrderRecord) {
@@ -1110,6 +1112,105 @@ export const handlers = [
     orders.set(order.id, order)
 
     return HttpResponse.json({ order })
+  }),
+
+  http.post('*/v1/orders/:id/payments', async ({ params, request }) => {
+    const id = String(params.id)
+    const order = orders.get(id)
+    if (!order) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Order not found',
+            details: { order_id: id },
+          },
+        },
+        { status: 404 },
+      )
+    }
+    if (order.status === 'PAID' || order.status === 'VOID') {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'CONFLICT',
+            message: 'Order is already closed',
+            details: { order_id: id, status: order.status },
+          },
+        },
+        { status: 409 },
+      )
+    }
+    if (order.status !== 'CHECK_PRINTED') {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Order must be billed before recording payment',
+            details: { order_id: id, status: order.status },
+          },
+        },
+        { status: 400 },
+      )
+    }
+
+    const body = (await request.json()) as {
+      tender_type?: string
+      amount_cents?: number
+    }
+    if (
+      body.tender_type !== 'CASH' &&
+      body.tender_type !== 'CARD' &&
+      body.tender_type !== 'OTHER'
+    ) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid tender_type',
+            details: { tender_type: body.tender_type },
+          },
+        },
+        { status: 400 },
+      )
+    }
+
+    const amountCents = body.amount_cents ?? order.total_cents
+    if (amountCents !== order.total_cents) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Payment amount must match order total',
+            details: {
+              amount_cents: amountCents,
+              order_total_cents: order.total_cents,
+            },
+          },
+        },
+        { status: 400 },
+      )
+    }
+
+    order.status = 'PAID'
+    order.closed_at = nowIso()
+    order.version += 1
+    orders.set(order.id, order)
+
+    return HttpResponse.json({
+      payment: {
+        id: `pay_${++paymentSeq}`,
+        order_id: order.id,
+        status: 'CAPTURED',
+        amount_cents: amountCents,
+        tender_type: body.tender_type,
+        provider: null,
+        provider_ref: null,
+        version: 1,
+        created_at: nowIso(),
+      },
+      order,
+    })
   }),
 
   http.patch('*/v1/tables/:id', async ({ params, request }) => {
