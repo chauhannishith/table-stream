@@ -3,12 +3,7 @@ import { HubApiError, hubErrorMessage } from '../../lib/api-client'
 import type { MenuItem } from '../../lib/menu-api'
 import {
   addOrderLine,
-  finalizeOrderBill,
-  getInvoice,
   getOrder,
-  issueOrderInvoice,
-  previewOrderBill,
-  recordOrderPayment,
   removeOrderLine,
   submitOrder,
   updateOrderLine,
@@ -17,6 +12,13 @@ import {
   type Order,
   type TenderType,
 } from '../../lib/orders-api'
+import {
+  finalizeOrderBill,
+  getInvoice,
+  issueOrderInvoice,
+  previewOrderBill,
+  recordOrderPayment,
+} from '../../lib/order-checkout-api'
 import { listMenuItemsForZone } from '../../lib/zone-prices-api'
 import {
   buildBillInput,

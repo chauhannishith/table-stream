@@ -2,16 +2,18 @@ import { describe, expect, it, vi } from 'vitest'
 import { HubApiError, type HubApiClient } from './api-client'
 import {
   createTakeawayOrder,
-  finalizeOrderBill,
-  getInvoice,
-  issueOrderInvoice,
   normalizeCustomerName,
-  previewOrderBill,
-  recordOrderPayment,
   removeOrderLine,
   submitOrder,
   updateOrderLine,
 } from './orders-api'
+import {
+  finalizeOrderBill,
+  getInvoice,
+  issueOrderInvoice,
+  previewOrderBill,
+  recordOrderPayment,
+} from './order-checkout-api'
 
 const sampleLine = {
   id: 'line_1',
