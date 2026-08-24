@@ -8,11 +8,13 @@ import {
   finalizeOrderBill,
   getOrder,
   previewOrderBill,
+  recordOrderPayment,
   removeOrderLine,
   submitOrder,
   updateOrderLine,
   type BillPreview,
   type Order,
+  type TenderType,
 } from '../../lib/orders-api'
 import { listMenuItemsForZone } from '../../lib/zone-prices-api'
 
@@ -28,6 +30,7 @@ export function CounterOrderScreen() {
   const [submittingOrder, setSubmittingOrder] = useState(false)
   const [previewingBill, setPreviewingBill] = useState(false)
   const [lockingBill, setLockingBill] = useState(false)
+  const [recordingPayment, setRecordingPayment] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [quantities, setQuantities] = useState<Record<string, string>>({})
   const [lineQuantities, setLineQuantities] = useState<Record<string, string>>({})
@@ -35,6 +38,7 @@ export function CounterOrderScreen() {
   const [discountValue, setDiscountValue] = useState('')
   const [tipCents, setTipCents] = useState('')
   const [billPreview, setBillPreview] = useState<BillPreview | null>(null)
+  const [tenderType, setTenderType] = useState<TenderType>('CASH')
 
   const activeItems = useMemo(
     () => items.filter((item) => item.is_active),
@@ -101,6 +105,7 @@ export function CounterOrderScreen() {
   }
 
   useEffect(() => {
+    setTenderType('CASH')
     void loadOrderAndMenu()
   }, [orderId])
 
@@ -233,6 +238,23 @@ export function CounterOrderScreen() {
       }
     } finally {
       setLockingBill(false)
+    }
+  }
+
+  async function handleRecordPayment() {
+    setRecordingPayment(true)
+    setError(null)
+    try {
+      await recordOrderPayment(orderId, { tender_type: tenderType })
+      await loadOrderAndMenu()
+    } catch (err) {
+      if (err instanceof HubApiError || err instanceof Error) {
+        setError(err.message)
+      } else {
+        setError('Failed to record payment')
+      }
+    } finally {
+      setRecordingPayment(false)
     }
   }
 
@@ -514,6 +536,43 @@ export function CounterOrderScreen() {
                       </p>
                     </div>
                   ) : null}
+                </>
+              )}
+            </section>
+          ) : null}
+
+          {order.status === 'CHECK_PRINTED' || order.status === 'PAID' ? (
+            <section className="card">
+              <h2>Payment</h2>
+              {order.status === 'PAID' ? (
+                <p>
+                  Paid <strong>{centsToPriceString(order.total_cents)}</strong>
+                </p>
+              ) : (
+                <>
+                  <label className="field">
+                    <span>Tender</span>
+                    <select
+                      aria-label="Tender type"
+                      value={tenderType}
+                      onChange={(event) =>
+                        setTenderType(event.target.value as TenderType)
+                      }
+                    >
+                      <option value="CASH">Cash</option>
+                      <option value="CARD">Card</option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                  </label>
+                  <div className="button-row">
+                    <button
+                      type="button"
+                      disabled={recordingPayment}
+                      onClick={() => void handleRecordPayment()}
+                    >
+                      {recordingPayment ? 'Recording…' : 'Record payment'}
+                    </button>
+                  </div>
                 </>
               )}
             </section>

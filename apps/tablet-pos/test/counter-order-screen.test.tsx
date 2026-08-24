@@ -147,4 +147,27 @@ describe('CounterOrderScreen (MSW)', () => {
     expect(screen.getByText('7.50')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Lock bill' })).not.toBeInTheDocument()
   })
+
+  it('records cash payment and marks order PAID', async () => {
+    const { order } = await seedTakeawayOrder()
+
+    const { user } = createTestRender(<AppRoutes />, {
+      route: counterOrderDetailPath(order.id),
+    })
+
+    expect(await screen.findByText('Burger')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+    expect(await screen.findByRole('heading', { name: 'Bill' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Lock bill' }))
+    expect(await screen.findByText(/Status:\s*CHECK_PRINTED/)).toBeInTheDocument()
+
+    expect(screen.getByRole('heading', { name: 'Payment' })).toBeInTheDocument()
+    await user.selectOptions(screen.getByLabelText('Tender type'), 'CASH')
+    await user.click(screen.getByRole('button', { name: 'Record payment' }))
+
+    expect(await screen.findByText(/Paid/)).toBeInTheDocument()
+    expect(screen.getByText(/Status:\s*PAID/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Record payment' })).not.toBeInTheDocument()
+  })
 })

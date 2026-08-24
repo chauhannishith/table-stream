@@ -84,6 +84,30 @@ export type BillPreview = {
   total_cents: number
 }
 
+export type TenderType = 'CASH' | 'CARD' | 'OTHER'
+
+export type Payment = {
+  id: string
+  order_id: string
+  status: string
+  amount_cents: number
+  tender_type: TenderType
+  provider: string | null
+  provider_ref: string | null
+  version: number
+  created_at: string
+}
+
+export type PaymentResult = {
+  payment: Payment
+  order: Order
+}
+
+export type RecordPaymentInput = {
+  tender_type: TenderType
+  amount_cents?: number
+}
+
 function buildBillBody(input: BillInput): Record<string, unknown> {
   const body: Record<string, unknown> = {}
   if (input.discount_type !== undefined) {
@@ -235,4 +259,26 @@ export async function finalizeOrderBill(
     { body: buildBillBody(input) },
   )
   return result.order
+}
+
+/**
+ * Record full payment for a billed order (hub requires CHECK_PRINTED).
+ * Amount defaults to the locked order total when omitted.
+ */
+export async function recordOrderPayment(
+  orderId: string,
+  input: RecordPaymentInput,
+  client: HubApiClient = api,
+): Promise<PaymentResult> {
+  const body: Record<string, unknown> = {
+    tender_type: input.tender_type,
+  }
+  if (input.amount_cents !== undefined) {
+    body.amount_cents = input.amount_cents
+  }
+
+  return client.post<PaymentResult>(
+    `/v1/orders/${encodeURIComponent(orderId)}/payments`,
+    { body },
+  )
 }
