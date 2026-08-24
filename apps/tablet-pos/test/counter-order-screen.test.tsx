@@ -170,4 +170,32 @@ describe('CounterOrderScreen (MSW)', () => {
     expect(screen.getByText(/Status:\s*PAID/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Record payment' })).not.toBeInTheDocument()
   })
+
+  it('issues invoice and reprints snapshot with business header', async () => {
+    const { order } = await seedTakeawayOrder()
+
+    const { user } = createTestRender(<AppRoutes />, {
+      route: counterOrderDetailPath(order.id),
+    })
+
+    expect(await screen.findByText('Burger')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+    await user.click(screen.getByRole('button', { name: 'Lock bill' }))
+    expect(await screen.findByRole('button', { name: 'Record payment' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Record payment' }))
+
+    expect(await screen.findByRole('heading', { name: 'Invoice' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Issue invoice' }))
+
+    expect(await screen.findByText('INV-00001')).toBeInTheDocument()
+    expect(screen.getByText('Unknown Business')).toBeInTheDocument()
+
+    const invoiceSection = screen.getByRole('heading', { name: 'Invoice' }).closest('section')
+    expect(invoiceSection).not.toBeNull()
+    expect(within(invoiceSection as HTMLElement).getByText(/Total:/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Reprint' }))
+    expect(await screen.findByText('INV-00001')).toBeInTheDocument()
+    expect(screen.getByText('Unknown Business')).toBeInTheDocument()
+  })
 })

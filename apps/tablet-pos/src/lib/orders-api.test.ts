@@ -3,6 +3,8 @@ import { HubApiError, type HubApiClient } from './api-client'
 import {
   createTakeawayOrder,
   finalizeOrderBill,
+  getInvoice,
+  issueOrderInvoice,
   normalizeCustomerName,
   previewOrderBill,
   recordOrderPayment,
@@ -302,5 +304,41 @@ describe('orders API helpers', () => {
       message: 'Order must be billed before recording payment',
       status: 400,
     })
+  })
+
+  it('issues an invoice for a paid order', async () => {
+    const invoice = {
+      id: 'inv_1',
+      invoice_number: 'INV-00001',
+      order_id: 'ord_1',
+      tax_breakdown: { cgst: 25, sgst: 25 },
+      business_snapshot: { legal_name: 'Unknown Business' },
+    }
+    const client = {
+      post: vi.fn(async () => ({ invoice })),
+    } as unknown as HubApiClient
+
+    await expect(issueOrderInvoice('ord_1', client)).resolves.toMatchObject({
+      invoice_number: 'INV-00001',
+    })
+    expect(client.post).toHaveBeenCalledWith('/v1/orders/ord_1/invoice', {
+      body: {},
+    })
+  })
+
+  it('loads an invoice snapshot for reprint', async () => {
+    const invoice = {
+      id: 'inv_1',
+      invoice_number: 'INV-00001',
+      content_hash: 'abc',
+    }
+    const client = {
+      get: vi.fn(async () => ({ invoice })),
+    } as unknown as HubApiClient
+
+    await expect(getInvoice('inv_1', client)).resolves.toMatchObject({
+      invoice_number: 'INV-00001',
+    })
+    expect(client.get).toHaveBeenCalledWith('/v1/invoices/inv_1')
   })
 })

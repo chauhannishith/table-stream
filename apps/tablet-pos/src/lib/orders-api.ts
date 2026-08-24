@@ -108,6 +108,46 @@ export type RecordPaymentInput = {
   amount_cents?: number
 }
 
+export type InvoiceBusinessSnapshot = {
+  legal_name?: string | null
+  trade_name?: string | null
+  gst_number?: string | null
+  address_lines?: unknown
+  phone?: string | null
+  email?: string | null
+  logo_path?: string | null
+}
+
+export type Invoice = {
+  id: string
+  location_id: string
+  order_id: string
+  payment_id: string
+  invoice_number: string
+  status: string
+  issued_at: string
+  voided_at: string | null
+  void_reason: string | null
+  replaces_invoice_id: string | null
+  subtotal_cents: number
+  tax_cents: number
+  discount_cents: number
+  tip_cents: number
+  total_cents: number
+  tender_summary: Record<string, number>
+  line_items: unknown[]
+  cashier_id: string | null
+  cashier_name: string | null
+  token_number: string
+  business_snapshot: InvoiceBusinessSnapshot
+  tax_breakdown: Record<string, number>
+  applied_tax_rules: Record<string, number>
+  combined_rate_percent: number
+  metadata: Record<string, unknown>
+  document_path: string
+  content_hash: string
+}
+
 function buildBillBody(input: BillInput): Record<string, unknown> {
   const body: Record<string, unknown> = {}
   if (input.discount_type !== undefined) {
@@ -281,4 +321,27 @@ export async function recordOrderPayment(
     `/v1/orders/${encodeURIComponent(orderId)}/payments`,
     { body },
   )
+}
+
+/** Issue a local invoice for a paid order (hub returns 409 if already issued). */
+export async function issueOrderInvoice(
+  orderId: string,
+  client: HubApiClient = api,
+): Promise<Invoice> {
+  const result = await client.post<{ invoice: Invoice }>(
+    `/v1/orders/${encodeURIComponent(orderId)}/invoice`,
+    { body: {} },
+  )
+  return result.invoice
+}
+
+/** Load an issued invoice snapshot for reprint. */
+export async function getInvoice(
+  invoiceId: string,
+  client: HubApiClient = api,
+): Promise<Invoice> {
+  const result = await client.get<{ invoice: Invoice }>(
+    `/v1/invoices/${encodeURIComponent(invoiceId)}`,
+  )
+  return result.invoice
 }
