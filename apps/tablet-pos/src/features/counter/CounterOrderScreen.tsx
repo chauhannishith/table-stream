@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { HubApiError } from '../../lib/api-client'
 import { centsToPriceString, type MenuItem } from '../../lib/menu-api'
@@ -24,6 +24,8 @@ import { listMenuItemsForZone } from '../../lib/zone-prices-api'
 /** Counter ops: load one draft order before menu selection. */
 export function CounterOrderScreen() {
   const { orderId = '' } = useParams()
+  const orderIdRef = useRef(orderId)
+  orderIdRef.current = orderId
   const [order, setOrder] = useState<Order | null>(null)
   const [items, setItems] = useState<MenuItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -113,6 +115,8 @@ export function CounterOrderScreen() {
   useEffect(() => {
     setTenderType('CASH')
     setInvoice(null)
+    setIssuingInvoice(false)
+    setReprintingInvoice(false)
     void loadOrderAndMenu()
   }, [orderId])
 
@@ -266,20 +270,35 @@ export function CounterOrderScreen() {
   }
 
   async function handleIssueInvoice() {
+    const requestOrderId = orderId
     setIssuingInvoice(true)
     setError(null)
     try {
-      setInvoice(await issueOrderInvoice(orderId))
+      const issued = await issueOrderInvoice(requestOrderId)
+      if (orderIdRef.current !== requestOrderId) {
+        return
+      }
+      setInvoice(issued)
     } catch (err) {
+      if (orderIdRef.current !== requestOrderId) {
+        return
+      }
       if (
         err instanceof HubApiError &&
         err.code === 'CONFLICT' &&
         typeof err.details.invoice_id === 'string'
       ) {
         try {
-          setInvoice(await getInvoice(err.details.invoice_id))
+          const existing = await getInvoice(err.details.invoice_id)
+          if (orderIdRef.current !== requestOrderId) {
+            return
+          }
+          setInvoice(existing)
           return
         } catch (reloadErr) {
+          if (orderIdRef.current !== requestOrderId) {
+            return
+          }
           if (reloadErr instanceof HubApiError || reloadErr instanceof Error) {
             setError(reloadErr.message)
           } else {
@@ -294,7 +313,9 @@ export function CounterOrderScreen() {
         setError('Failed to issue invoice')
       }
     } finally {
-      setIssuingInvoice(false)
+      if (orderIdRef.current === requestOrderId) {
+        setIssuingInvoice(false)
+      }
     }
   }
 
@@ -302,18 +323,29 @@ export function CounterOrderScreen() {
     if (!invoice) {
       return
     }
+    const requestOrderId = orderId
+    const invoiceId = invoice.id
     setReprintingInvoice(true)
     setError(null)
     try {
-      setInvoice(await getInvoice(invoice.id))
+      const reprinted = await getInvoice(invoiceId)
+      if (orderIdRef.current !== requestOrderId) {
+        return
+      }
+      setInvoice(reprinted)
     } catch (err) {
+      if (orderIdRef.current !== requestOrderId) {
+        return
+      }
       if (err instanceof HubApiError || err instanceof Error) {
         setError(err.message)
       } else {
         setError('Failed to reprint invoice')
       }
     } finally {
-      setReprintingInvoice(false)
+      if (orderIdRef.current === requestOrderId) {
+        setReprintingInvoice(false)
+      }
     }
   }
 
