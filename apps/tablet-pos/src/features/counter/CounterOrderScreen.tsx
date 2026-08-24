@@ -105,6 +105,7 @@ export function CounterOrderScreen() {
   }
 
   useEffect(() => {
+    setTenderType('CASH')
     void loadOrderAndMenu()
   }, [orderId])
 
