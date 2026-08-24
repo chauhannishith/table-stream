@@ -1,7 +1,27 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { HubApiError } from '../../lib/api-client'
+import { HubApiError, hubErrorMessage } from '../../lib/api-client'
 import { centsToPriceString, type MenuItem } from '../../lib/menu-api'
+import { ROLE_ROUTES } from '../../lib/device-type'
+import {
+  addOrderLine,
+  finalizeOrderBill,
+  getInvoice,
+  getOrder,
+  issueOrderInvoice,
+  previewOrderBill,
+  recordOrderPayment,
+  removeOrderLine,
+  submitOrder,
+  updateOrderLine,
+  type BillPreview,
+  type Invoice,
+  type Order,
+  type TenderType,
+} from '../../lib/orders-api'
+import { listMenuItemsForZone } from '../../lib/zone-prices-api'
+import { QuantityField } from '../../components/forms/QuantityField'
+import { MoneyTotals } from '../../components/money/MoneyTotals'
 import { ROLE_ROUTES } from '../../lib/device-type'
 import {
   addOrderLine,
@@ -102,11 +122,7 @@ export function CounterOrderScreen() {
 
       setItems(await listMenuItemsForZone(loadedOrder.zone_id))
     } catch (err) {
-      if (err instanceof HubApiError || err instanceof Error) {
-        setError(err.message)
-      } else {
-        setError('Failed to load order')
-      }
+      setError(hubErrorMessage(err, 'Failed to load order'))
     } finally {
       setLoading(false)
     }
@@ -149,11 +165,7 @@ export function CounterOrderScreen() {
       }))
       await loadOrderAndMenu()
     } catch (err) {
-      if (err instanceof HubApiError || err instanceof Error) {
-        setError(err.message)
-      } else {
-        setError('Failed to add item')
-      }
+      setError(hubErrorMessage(err, 'Failed to add item'))
     } finally {
       setSubmittingItemId(null)
     }
@@ -171,11 +183,7 @@ export function CounterOrderScreen() {
       await updateOrderLine(orderId, lineId, { quantity })
       await loadOrderAndMenu()
     } catch (err) {
-      if (err instanceof HubApiError || err instanceof Error) {
-        setError(err.message)
-      } else {
-        setError('Failed to update line')
-      }
+      setError(hubErrorMessage(err, 'Failed to update line'))
     } finally {
       setUpdatingLineId(null)
     }
@@ -188,11 +196,7 @@ export function CounterOrderScreen() {
       await removeOrderLine(orderId, lineId)
       await loadOrderAndMenu()
     } catch (err) {
-      if (err instanceof HubApiError || err instanceof Error) {
-        setError(err.message)
-      } else {
-        setError('Failed to remove line')
-      }
+      setError(hubErrorMessage(err, 'Failed to remove line'))
     } finally {
       setRemovingLineId(null)
     }
@@ -207,11 +211,7 @@ export function CounterOrderScreen() {
       })
       await loadOrderAndMenu()
     } catch (err) {
-      if (err instanceof HubApiError || err instanceof Error) {
-        setError(err.message)
-      } else {
-        setError('Failed to submit order')
-      }
+      setError(hubErrorMessage(err, 'Failed to submit order'))
     } finally {
       setSubmittingOrder(false)
     }
@@ -224,11 +224,7 @@ export function CounterOrderScreen() {
       const preview = await previewOrderBill(orderId, buildBillInput())
       setBillPreview(preview)
     } catch (err) {
-      if (err instanceof HubApiError || err instanceof Error) {
-        setError(err.message)
-      } else {
-        setError('Failed to preview bill')
-      }
+      setError(hubErrorMessage(err, 'Failed to preview bill'))
     } finally {
       setPreviewingBill(false)
     }
@@ -242,11 +238,7 @@ export function CounterOrderScreen() {
       setBillPreview(null)
       await loadOrderAndMenu()
     } catch (err) {
-      if (err instanceof HubApiError || err instanceof Error) {
-        setError(err.message)
-      } else {
-        setError('Failed to lock bill')
-      }
+      setError(hubErrorMessage(err, 'Failed to lock bill'))
     } finally {
       setLockingBill(false)
     }
@@ -259,11 +251,7 @@ export function CounterOrderScreen() {
       await recordOrderPayment(orderId, { tender_type: tenderType })
       await loadOrderAndMenu()
     } catch (err) {
-      if (err instanceof HubApiError || err instanceof Error) {
-        setError(err.message)
-      } else {
-        setError('Failed to record payment')
-      }
+      setError(hubErrorMessage(err, 'Failed to record payment'))
     } finally {
       setRecordingPayment(false)
     }
@@ -299,19 +287,11 @@ export function CounterOrderScreen() {
           if (orderIdRef.current !== requestOrderId) {
             return
           }
-          if (reloadErr instanceof HubApiError || reloadErr instanceof Error) {
-            setError(reloadErr.message)
-          } else {
-            setError('Failed to load invoice')
-          }
+          setError(hubErrorMessage(reloadErr, 'Failed to load invoice'))
           return
         }
       }
-      if (err instanceof HubApiError || err instanceof Error) {
-        setError(err.message)
-      } else {
-        setError('Failed to issue invoice')
-      }
+      setError(hubErrorMessage(err, 'Failed to issue invoice'))
     } finally {
       if (orderIdRef.current === requestOrderId) {
         setIssuingInvoice(false)
@@ -337,11 +317,7 @@ export function CounterOrderScreen() {
       if (orderIdRef.current !== requestOrderId) {
         return
       }
-      if (err instanceof HubApiError || err instanceof Error) {
-        setError(err.message)
-      } else {
-        setError('Failed to reprint invoice')
-      }
+      setError(hubErrorMessage(err, 'Failed to reprint invoice'))
     } finally {
       if (orderIdRef.current === requestOrderId) {
         setReprintingInvoice(false)
@@ -414,21 +390,16 @@ export function CounterOrderScreen() {
                       </p>
                     </div>
                     <div className="button-row">
-                      <label className="field">
-                        <span>Qty</span>
-                        <input
-                          aria-label={`Quantity for ${item.name}`}
-                          inputMode="numeric"
-                          min="1"
-                          value={quantities[item.id] ?? '1'}
-                          onChange={(event) =>
-                            setQuantities((current) => ({
-                              ...current,
-                              [item.id]: event.target.value.replace(/\D/g, ''),
-                            }))
-                          }
-                        />
-                      </label>
+                      <QuantityField
+                        itemName={item.name}
+                        value={quantities[item.id] ?? '1'}
+                        onChange={(value) =>
+                          setQuantities((current) => ({
+                            ...current,
+                            [item.id]: value,
+                          }))
+                        }
+                      />
                       <button
                         type="button"
                         disabled={
@@ -469,21 +440,16 @@ export function CounterOrderScreen() {
                       </div>
                     ) : (
                       <div className="button-row">
-                        <label className="field">
-                          <span>Qty</span>
-                          <input
-                            aria-label={`Quantity for ${line.name}`}
-                            inputMode="numeric"
-                            min="1"
-                            value={lineQuantities[line.id] ?? String(line.quantity)}
-                            onChange={(event) =>
-                              setLineQuantities((current) => ({
-                                ...current,
-                                [line.id]: event.target.value.replace(/\D/g, ''),
-                              }))
-                            }
-                          />
-                        </label>
+                        <QuantityField
+                          itemName={line.name}
+                          value={lineQuantities[line.id] ?? String(line.quantity)}
+                          onChange={(value) =>
+                            setLineQuantities((current) => ({
+                              ...current,
+                              [line.id]: value,
+                            }))
+                          }
+                        />
                         <button
                           type="button"
                           disabled={
@@ -516,21 +482,13 @@ export function CounterOrderScreen() {
               {billLocked ? (
                 <>
                   <p className="muted">Status: {order.status}</p>
-                  <p className="muted">
-                    Subtotal: {centsToPriceString(order.subtotal_cents)}
-                  </p>
-                  <p className="muted">
-                    Discount: {centsToPriceString(order.discount_cents)}
-                  </p>
-                  <p className="muted">
-                    Tax: {centsToPriceString(order.tax_cents)}
-                  </p>
-                  <p className="muted">
-                    Tip: {centsToPriceString(order.tip_cents)}
-                  </p>
-                  <p>
-                    Total: <strong>{centsToPriceString(order.total_cents)}</strong>
-                  </p>
+                  <MoneyTotals
+                    subtotalCents={order.subtotal_cents}
+                    discountCents={order.discount_cents}
+                    taxCents={order.tax_cents}
+                    tipCents={order.tip_cents}
+                    totalCents={order.total_cents}
+                  />
                 </>
               ) : (
                 <>
@@ -605,27 +563,13 @@ export function CounterOrderScreen() {
                     </button>
                   </div>
                   {billPreview ? (
-                    <div>
-                      <p className="muted">
-                        Subtotal: {centsToPriceString(billPreview.subtotal_cents)}
-                      </p>
-                      <p className="muted">
-                        Discount:{' '}
-                        {centsToPriceString(billPreview.discount_cents)}
-                      </p>
-                      <p className="muted">
-                        Tax: {centsToPriceString(billPreview.tax_cents)}
-                      </p>
-                      <p className="muted">
-                        Tip: {centsToPriceString(billPreview.tip_cents)}
-                      </p>
-                      <p>
-                        Total:{' '}
-                        <strong>
-                          {centsToPriceString(billPreview.total_cents)}
-                        </strong>
-                      </p>
-                    </div>
+                    <MoneyTotals
+                      subtotalCents={billPreview.subtotal_cents}
+                      discountCents={billPreview.discount_cents}
+                      taxCents={billPreview.tax_cents}
+                      tipCents={billPreview.tip_cents}
+                      totalCents={billPreview.total_cents}
+                    />
                   ) : null}
                 </>
               )}
@@ -696,27 +640,14 @@ export function CounterOrderScreen() {
                   {invoice.business_snapshot.email ? (
                     <p className="muted">{invoice.business_snapshot.email}</p>
                   ) : null}
-                  <p className="muted">
-                    Subtotal: {centsToPriceString(invoice.subtotal_cents)}
-                  </p>
-                  <p className="muted">
-                    Discount: {centsToPriceString(invoice.discount_cents)}
-                  </p>
-                  {Object.entries(invoice.tax_breakdown).map(([name, cents]) => (
-                    <p key={name} className="muted">
-                      {name.toUpperCase()}: {centsToPriceString(cents)}
-                    </p>
-                  ))}
-                  <p className="muted">
-                    Tax: {centsToPriceString(invoice.tax_cents)}
-                  </p>
-                  <p className="muted">
-                    Tip: {centsToPriceString(invoice.tip_cents)}
-                  </p>
-                  <p>
-                    Total:{' '}
-                    <strong>{centsToPriceString(invoice.total_cents)}</strong>
-                  </p>
+                  <MoneyTotals
+                    subtotalCents={invoice.subtotal_cents}
+                    discountCents={invoice.discount_cents}
+                    taxCents={invoice.tax_cents}
+                    tipCents={invoice.tip_cents}
+                    totalCents={invoice.total_cents}
+                    taxBreakdown={invoice.tax_breakdown}
+                  />
                   <div className="button-row">
                     <button
                       type="button"
