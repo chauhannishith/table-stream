@@ -118,4 +118,33 @@ describe('CounterOrderScreen (MSW)', () => {
     expect(screen.getByText('Submitted')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Submit to kitchen' })).toBeDisabled()
   })
+
+  it('previews and locks bill with optional tip', async () => {
+    const { order } = await seedTakeawayOrder()
+
+    const { user } = createTestRender(<AppRoutes />, {
+      route: counterOrderDetailPath(order.id),
+    })
+
+    expect(await screen.findByText('Burger')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+
+    expect(await screen.findByRole('heading', { name: 'Bill' })).toBeInTheDocument()
+
+    const tipInput = screen.getByLabelText('Tip in cents')
+    await user.clear(tipInput)
+    await user.type(tipInput, '100')
+    await user.click(screen.getByRole('button', { name: 'Preview bill' }))
+
+    expect(await screen.findByText(/Tip:\s*1.00/)).toBeInTheDocument()
+    expect(screen.getByText(/Total:/)).toBeInTheDocument()
+    expect(screen.getByText('7.50')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Lock bill' }))
+
+    expect(await screen.findByText(/Status:\s*CHECK_PRINTED/)).toBeInTheDocument()
+    expect(screen.getByText(/Total:/)).toBeInTheDocument()
+    expect(screen.getByText('7.50')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Lock bill' })).not.toBeInTheDocument()
+  })
 })

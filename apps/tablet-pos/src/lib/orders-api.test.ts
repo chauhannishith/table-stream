@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { HubApiError, type HubApiClient } from './api-client'
 import {
   createTakeawayOrder,
+  finalizeOrderBill,
   normalizeCustomerName,
+  previewOrderBill,
   removeOrderLine,
   submitOrder,
   updateOrderLine,
@@ -198,6 +200,56 @@ describe('orders API helpers', () => {
       code: 'VALIDATION_ERROR',
       message: 'No draft lines to submit',
       status: 400,
+    })
+  })
+
+  it('previews bill totals with discount and tip', async () => {
+    const preview = {
+      subtotal_cents: 10000,
+      discount_cents: 1000,
+      discounted_subtotal_cents: 9000,
+      tax_cents: 450,
+      tax_breakdown: { cgst: 225, sgst: 225 },
+      service_charge_cents: 0,
+      tip_cents: 500,
+      total_cents: 9950,
+    }
+    const client = {
+      post: vi.fn(async () => ({ preview })),
+    } as unknown as HubApiClient
+
+    await expect(
+      previewOrderBill(
+        'ord_1',
+        { discount_type: 'PERCENT', discount_value: 10, tip_cents: 500 },
+        client,
+      ),
+    ).resolves.toEqual(preview)
+    expect(client.post).toHaveBeenCalledWith('/v1/orders/ord_1/bill/preview', {
+      body: {
+        discount_type: 'PERCENT',
+        discount_value: 10,
+        tip_cents: 500,
+      },
+    })
+  })
+
+  it('finalizes bill and returns locked order', async () => {
+    const billed = {
+      ...sampleOrder,
+      status: 'CHECK_PRINTED' as const,
+      tip_cents: 200,
+      total_cents: 850,
+    }
+    const client = {
+      post: vi.fn(async () => ({ order: billed })),
+    } as unknown as HubApiClient
+
+    await expect(
+      finalizeOrderBill('ord_1', { tip_cents: 200 }, client),
+    ).resolves.toEqual(billed)
+    expect(client.post).toHaveBeenCalledWith('/v1/orders/ord_1/bill', {
+      body: { tip_cents: 200 },
     })
   })
 })

@@ -67,6 +67,37 @@ export type OrderSubmission = {
   lines: OrderLine[]
 }
 
+export type BillInput = {
+  discount_type?: 'PERCENT' | 'FIXED'
+  discount_value?: number
+  tip_cents?: number
+}
+
+export type BillPreview = {
+  subtotal_cents: number
+  discount_cents: number
+  discounted_subtotal_cents: number
+  tax_cents: number
+  tax_breakdown: Record<string, number>
+  service_charge_cents: number
+  tip_cents: number
+  total_cents: number
+}
+
+function buildBillBody(input: BillInput): Record<string, unknown> {
+  const body: Record<string, unknown> = {}
+  if (input.discount_type !== undefined) {
+    body.discount_type = input.discount_type
+  }
+  if (input.discount_value !== undefined) {
+    body.discount_value = input.discount_value
+  }
+  if (input.tip_cents !== undefined) {
+    body.tip_cents = input.tip_cents
+  }
+  return body
+}
+
 /** Trim takeaway customer name; hub requires non-empty for TAKEAWAY. */
 export function normalizeCustomerName(raw: string): string {
   const trimmed = raw.trim()
@@ -178,4 +209,30 @@ export async function submitOrder(
     { headers },
   )
   return result.submission
+}
+
+/** Preview bill totals without locking the order. */
+export async function previewOrderBill(
+  orderId: string,
+  input: BillInput = {},
+  client: HubApiClient = api,
+): Promise<BillPreview> {
+  const result = await client.post<{ preview: BillPreview }>(
+    `/v1/orders/${encodeURIComponent(orderId)}/bill/preview`,
+    { body: buildBillBody(input) },
+  )
+  return result.preview
+}
+
+/** Finalize and lock bill totals on the order (status → CHECK_PRINTED). */
+export async function finalizeOrderBill(
+  orderId: string,
+  input: BillInput = {},
+  client: HubApiClient = api,
+): Promise<Order> {
+  const result = await client.post<{ order: Order }>(
+    `/v1/orders/${encodeURIComponent(orderId)}/bill`,
+    { body: buildBillBody(input) },
+  )
+  return result.order
 }

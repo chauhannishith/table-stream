@@ -48,7 +48,7 @@ type OrderRecord = {
   token_number: string | null
   customer_name: string | null
   customer_contact: string | null
-  status: 'DRAFT' | 'SUBMITTED' | 'IN_PROGRESS' | 'READY' | 'COMPLETED' | 'CANCELLED' | 'PAID'
+  status: 'DRAFT' | 'SUBMITTED' | 'IN_PROGRESS' | 'READY' | 'COMPLETED' | 'CANCELLED' | 'CHECK_PRINTED' | 'PAID' | 'VOID'
   fulfillment_status: 'IN_QUEUE' | 'PREPARING' | 'READY' | 'SERVED' | 'COLLECTED'
   server_id: string | null
   discount_type: string | null
@@ -82,6 +82,41 @@ function recalcOrderTotals(order: OrderRecord) {
   )
   order.tax_cents = 0
   order.total_cents = order.subtotal_cents
+}
+
+function computeMswBillPreview(
+  order: OrderRecord,
+  input: {
+    discount_type?: string
+    discount_value?: number
+    tip_cents?: number
+  },
+) {
+  const subtotalCents = order.lines.reduce(
+    (sum, entry) => sum + entry.unit_price_cents * entry.quantity,
+    0,
+  )
+  let discountCents = 0
+  if (input.discount_type === 'PERCENT' && input.discount_value !== undefined) {
+    discountCents = Math.floor((subtotalCents * input.discount_value) / 100)
+  } else if (
+    input.discount_type === 'FIXED' &&
+    input.discount_value !== undefined
+  ) {
+    discountCents = Math.min(input.discount_value, subtotalCents)
+  }
+  const discountedSubtotalCents = subtotalCents - discountCents
+  const tipCents = input.tip_cents ?? order.tip_cents
+  return {
+    subtotal_cents: subtotalCents,
+    discount_cents: discountCents,
+    discounted_subtotal_cents: discountedSubtotalCents,
+    tax_cents: 0,
+    tax_breakdown: {} as Record<string, number>,
+    service_charge_cents: 0,
+    tip_cents: tipCents,
+    total_cents: discountedSubtotalCents + tipCents,
+  }
 }
 
 type OrderLineRecord = {
@@ -984,6 +1019,97 @@ export const handlers = [
         lines: submittedLines,
       },
     })
+  }),
+
+  http.post('*/v1/orders/:id/bill/preview', async ({ params, request }) => {
+    const id = String(params.id)
+    const order = orders.get(id)
+    if (!order) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Order not found',
+            details: { order_id: id },
+          },
+        },
+        { status: 404 },
+      )
+    }
+    if (order.status === 'PAID' || order.status === 'VOID') {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'CONFLICT',
+            message: 'Cannot bill a closed order',
+            details: { order_id: id, status: order.status },
+          },
+        },
+        { status: 409 },
+      )
+    }
+
+    const body = (await request.json()) as {
+      discount_type?: string
+      discount_value?: number
+      tip_cents?: number
+    }
+    return HttpResponse.json({
+      preview: computeMswBillPreview(order, body),
+    })
+  }),
+
+  http.post('*/v1/orders/:id/bill', async ({ params, request }) => {
+    const id = String(params.id)
+    const order = orders.get(id)
+    if (!order) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Order not found',
+            details: { order_id: id },
+          },
+        },
+        { status: 404 },
+      )
+    }
+    if (order.status === 'PAID' || order.status === 'VOID') {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'CONFLICT',
+            message: 'Cannot bill a closed order',
+            details: { order_id: id, status: order.status },
+          },
+        },
+        { status: 409 },
+      )
+    }
+
+    const body = (await request.json()) as {
+      discount_type?: string
+      discount_value?: number
+      tip_cents?: number
+    }
+    const preview = computeMswBillPreview(order, body)
+    order.discount_type =
+      body.discount_type === 'PERCENT' || body.discount_type === 'FIXED'
+        ? body.discount_type
+        : null
+    order.discount_value =
+      body.discount_value !== undefined ? body.discount_value : null
+    order.discount_cents = preview.discount_cents
+    order.service_charge_cents = preview.service_charge_cents
+    order.tip_cents = preview.tip_cents
+    order.subtotal_cents = preview.subtotal_cents
+    order.tax_cents = preview.tax_cents
+    order.total_cents = preview.total_cents
+    order.status = 'CHECK_PRINTED'
+    order.version += 1
+    orders.set(order.id, order)
+
+    return HttpResponse.json({ order })
   }),
 
   http.patch('*/v1/tables/:id', async ({ params, request }) => {
