@@ -5,6 +5,7 @@ import {
   finalizeOrderBill,
   normalizeCustomerName,
   previewOrderBill,
+  recordOrderPayment,
   removeOrderLine,
   submitOrder,
   updateOrderLine,
@@ -250,6 +251,56 @@ describe('orders API helpers', () => {
     ).resolves.toEqual(billed)
     expect(client.post).toHaveBeenCalledWith('/v1/orders/ord_1/bill', {
       body: { tip_cents: 200 },
+    })
+  })
+
+  it('records payment for a billed order', async () => {
+    const paid = {
+      payment: {
+        id: 'pay_1',
+        order_id: 'ord_1',
+        status: 'CAPTURED',
+        amount_cents: 850,
+        tender_type: 'CASH' as const,
+        provider: null,
+        provider_ref: null,
+        version: 1,
+        created_at: '2026-07-27T00:00:00.000Z',
+      },
+      order: { ...sampleOrder, status: 'PAID' as const, total_cents: 850 },
+    }
+    const client = {
+      post: vi.fn(async () => paid),
+    } as unknown as HubApiClient
+
+    await expect(
+      recordOrderPayment('ord_1', { tender_type: 'CASH' }, client),
+    ).resolves.toEqual(paid)
+    expect(client.post).toHaveBeenCalledWith('/v1/orders/ord_1/payments', {
+      body: { tender_type: 'CASH' },
+    })
+  })
+
+  it('surfaces hub VALIDATION_ERROR when order is not billed', async () => {
+    const client = {
+      post: vi.fn(async () => {
+        throw new HubApiError(
+          {
+            code: 'VALIDATION_ERROR',
+            message: 'Order must be billed before recording payment',
+            details: { order_id: 'ord_1', status: 'DRAFT' },
+          },
+          400,
+        )
+      }),
+    } as unknown as HubApiClient
+
+    await expect(
+      recordOrderPayment('ord_1', { tender_type: 'CARD' }, client),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      message: 'Order must be billed before recording payment',
+      status: 400,
     })
   })
 })
