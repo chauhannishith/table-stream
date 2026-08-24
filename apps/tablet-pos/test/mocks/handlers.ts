@@ -69,12 +69,66 @@ const orders = new Map<string, OrderRecord>()
 let orderSeq = 0
 let tokenSeq = 0
 let paymentSeq = 0
+let invoiceSeq = 0
+
+type CapturedPaymentRecord = {
+  id: string
+  order_id: string
+  tender_type: string
+  amount_cents: number
+}
+
+type InvoiceRecord = {
+  id: string
+  location_id: string
+  order_id: string
+  payment_id: string
+  invoice_number: string
+  status: string
+  issued_at: string
+  voided_at: null
+  void_reason: null
+  replaces_invoice_id: null
+  subtotal_cents: number
+  tax_cents: number
+  discount_cents: number
+  tip_cents: number
+  total_cents: number
+  tender_summary: Record<string, number>
+  line_items: unknown[]
+  cashier_id: null
+  cashier_name: string
+  token_number: string
+  business_snapshot: {
+    legal_name: string
+    trade_name: null
+    gst_number: null
+    address_lines: Record<string, never>
+    phone: null
+    email: null
+    logo_path: null
+  }
+  tax_breakdown: Record<string, number>
+  applied_tax_rules: Record<string, number>
+  combined_rate_percent: number
+  metadata: Record<string, unknown>
+  document_path: string
+  content_hash: string
+}
+
+const capturedPayments = new Map<string, CapturedPaymentRecord>()
+const invoices = new Map<string, InvoiceRecord>()
+const invoiceByOrder = new Map<string, string>()
 
 function resetOrdersStore() {
   orders.clear()
   orderSeq = 0
   tokenSeq = 0
   paymentSeq = 0
+  invoiceSeq = 0
+  capturedPayments.clear()
+  invoices.clear()
+  invoiceByOrder.clear()
 }
 
 function recalcOrderTotals(order: OrderRecord) {
@@ -1197,9 +1251,17 @@ export const handlers = [
     order.version += 1
     orders.set(order.id, order)
 
+    const payment: CapturedPaymentRecord = {
+      id: `pay_${++paymentSeq}`,
+      order_id: order.id,
+      tender_type: body.tender_type,
+      amount_cents: amountCents,
+    }
+    capturedPayments.set(order.id, payment)
+
     return HttpResponse.json({
       payment: {
-        id: `pay_${++paymentSeq}`,
+        id: payment.id,
         order_id: order.id,
         status: 'CAPTURED',
         amount_cents: amountCents,
@@ -1211,6 +1273,135 @@ export const handlers = [
       },
       order,
     })
+  }),
+
+  http.post('*/v1/orders/:id/invoice', ({ params }) => {
+    const id = String(params.id)
+    const order = orders.get(id)
+    if (!order) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Order not found',
+            details: { order_id: id },
+          },
+        },
+        { status: 404 },
+      )
+    }
+    if (order.status !== 'PAID') {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Order must be paid before issuing invoice',
+            details: { order_id: id, status: order.status },
+          },
+        },
+        { status: 400 },
+      )
+    }
+
+    const existingId = invoiceByOrder.get(id)
+    if (existingId) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'CONFLICT',
+            message: 'Invoice already issued for this order',
+            details: { order_id: id, invoice_id: existingId },
+          },
+        },
+        { status: 409 },
+      )
+    }
+
+    const payment = capturedPayments.get(id)
+    if (!payment) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Captured payment required to issue invoice',
+            details: { order_id: id },
+          },
+        },
+        { status: 400 },
+      )
+    }
+
+    const invoiceId = `inv_${++invoiceSeq}`
+    const invoiceNumber = `INV-${String(invoiceSeq).padStart(5, '0')}`
+    const invoice: InvoiceRecord = {
+      id: invoiceId,
+      location_id: order.location_id,
+      order_id: order.id,
+      payment_id: payment.id,
+      invoice_number: invoiceNumber,
+      status: 'ISSUED',
+      issued_at: nowIso(),
+      voided_at: null,
+      void_reason: null,
+      replaces_invoice_id: null,
+      subtotal_cents: order.subtotal_cents,
+      tax_cents: order.tax_cents,
+      discount_cents: order.discount_cents,
+      tip_cents: order.tip_cents,
+      total_cents: order.total_cents,
+      tender_summary: {
+        [payment.tender_type.toLowerCase()]: payment.amount_cents,
+      },
+      line_items: order.lines.map((line) => ({
+        name: line.name,
+        quantity: line.quantity,
+        line_total_cents: line.line_total_cents,
+      })),
+      cashier_id: null,
+      cashier_name: 'Counter',
+      token_number: order.token_number ?? '',
+      business_snapshot: {
+        legal_name: 'Unknown Business',
+        trade_name: null,
+        gst_number: null,
+        address_lines: {},
+        phone: null,
+        email: null,
+        logo_path: null,
+      },
+      tax_breakdown:
+        order.tax_cents > 0 ? { tax: order.tax_cents } : {},
+      applied_tax_rules: {},
+      combined_rate_percent: 0,
+      metadata: {
+        order_type: order.order_type,
+        customer_name: order.customer_name,
+      },
+      document_path: `/invoices/${order.location_id}/${invoiceId}.pdf`,
+      content_hash: `hash_${invoiceId}`,
+    }
+    invoices.set(invoiceId, invoice)
+    invoiceByOrder.set(id, invoiceId)
+
+    return HttpResponse.json({ invoice })
+  }),
+
+  http.get('*/v1/invoices/:id', ({ params }) => {
+    const id = String(params.id)
+    const invoice = invoices.get(id)
+    if (!invoice) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Invoice not found',
+            details: { invoice_id: id },
+          },
+        },
+        { status: 404 },
+      )
+    }
+    return HttpResponse.json({ invoice })
   }),
 
   http.patch('*/v1/tables/:id', async ({ params, request }) => {
