@@ -432,9 +432,7 @@ export function CounterOrderScreen() {
                           | 'PERCENT'
                           | 'FIXED'
                         setDiscountType(nextType)
-                        if (nextType === 'FIXED') {
-                          setDiscountValue((current) => current.replace(/\D/g, ''))
-                        }
+                        setDiscountValue('')
                         setBillPreview(null)
                       }}
                     >
