@@ -121,6 +121,7 @@ export function OrderBillCard({
               taxCents={billPreview.tax_cents}
               tipCents={billPreview.tip_cents}
               totalCents={billPreview.total_cents}
+              taxBreakdown={billPreview.tax_breakdown}
             />
           ) : null}
         </>
