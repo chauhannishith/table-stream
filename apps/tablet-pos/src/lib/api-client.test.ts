@@ -3,6 +3,7 @@ import {
   HubApiError,
   buildAuthHeaders,
   createHubApiClient,
+  hubErrorMessage,
   parseHubProblem,
 } from './api-client'
 import {
@@ -138,5 +139,21 @@ describe('createHubApiClient', () => {
       status: 401,
       message: 'Invalid pairing code',
     } satisfies Partial<HubApiError>)
+  })
+})
+
+describe('hubErrorMessage', () => {
+  it('uses Error and HubApiError messages, otherwise fallback', () => {
+    expect(hubErrorMessage(new Error('boom'), 'fallback')).toBe('boom')
+    expect(
+      hubErrorMessage(
+        new HubApiError(
+          { code: 'NOT_FOUND', message: 'missing', details: {} },
+          404,
+        ),
+        'fallback',
+      ),
+    ).toBe('missing')
+    expect(hubErrorMessage('nope', 'fallback')).toBe('fallback')
   })
 })

@@ -3,8 +3,8 @@
 > **Scope:** LAN floor UI — counter, setup, kitchen, waiter, customer views  
 > **Parent spec:** [`PLANNING.md`](./PLANNING.md) §5 (Module 4), §7 Phases 1–3  
 > **Backend contract:** [`EDGE-SERVER-ROADMAP.md`](./EDGE-SERVER-ROADMAP.md) (E0–E11 complete on main)  
-> **Status:** Active — implement in order; one PR per step unless noted  
-> **Last updated:** 2026-07-23
+> **Status:** Active — F1 complete; F2 next  
+> **Last updated:** 2026-08-24
 
 ---
 
@@ -62,12 +62,13 @@ apps/tablet-pos/src/          # hub web app (rename later)
 │   ├── pairing/              # F0.3
 │   ├── auth/                 # F0.4 staff PIN
 │   ├── setup/                # F1.x admin screens
-│   ├── counter/              # F1.11+ takeaway + billing
+│   ├── counter/              # F1.11+ takeaway compose + hook
+│   ├── checkout/             # bill / pay / invoice cards (F1 + F3)
 │   ├── kitchen/              # F2.x KDS
 │   └── waiter/               # F3.x table map
 └── test/
     ├── setup.ts              # vitest + Testing Library
-    └── mocks/                # MSW handlers for hub API
+    └── mocks/                # MSW: one file per hub domain, compose in handlers.ts
 ```
 
 **Layer rules**
@@ -219,7 +220,7 @@ Maps to `PLANNING.md` Phase 1. Admin screens live under `/counter/setup/*` (ADMI
 
 ### Phase F2 — Kitchen, printing & customer views
 
-Maps to `PLANNING.md` Phase 2. Kitchen UI primarily on `/kitchen`.
+**Start F2.1 with a hook + cards from day one** — do not grow one KDS screen the way F1 grew `CounterOrderScreen`. See §13.
 
 | Step | PR scope | Deliverables | Tests |
 |------|----------|--------------|-------|
@@ -247,7 +248,7 @@ Maps to `PLANNING.md` Phase 3. Primary route: `/waiter`.
 | **F3.4** | Draft lines | Add / edit qty / delete draft lines | Submitted lines read-only |
 | **F3.5** | Submit batch | Submit only draft lines; show `submit_batch` | Add-on round test |
 | **F3.6** | Unstage queued | Edit line while `QUEUED` (pre-`IN_PROGRESS`) | Hidden from KDS after unstage |
-| **F3.7** | Bill + pay | Same as F1.15–F1.17 on dine-in order | Invoice with table context |
+| **F3.7** | Bill + pay | Reuse `features/checkout` cards from F1.15–F1.17 | Invoice with table context |
 | **F3.8** | Transfer table | UI + hub API when table-transfer endpoint exists | Defer if backend not ready |
 | **F3.9** | 86 / recall | Surface kitchen recall alert via stream | Waiter cancel flow |
 
@@ -346,3 +347,31 @@ Commit tags: `feat(front):`, `test(front):`, `chore(front):`
 |------|--------|
 | 2026-07-23 | Initial hub web roadmap — F0 shell, F1 setup+counter, F2 kitchen, F3 waiter, F4 suspended UI |
 | 2026-07-23 | Edge-server E0–E11 complete; tax snapshot fix PR #31 — frontend can assume frozen invoice tax |
+| 2026-08-24 | F1 counter MVP complete; layout refactor — extract checkout cards, split MSW by domain; add §13 file-size lessons for F2 |
+
+---
+
+## 13. F1 lessons (apply in F2+)
+
+F1 shipped the takeaway golden path, then a layout pass split god-files. Do not wait until after a phase to split.
+
+**What went wrong**
+
+- `CounterOrderScreen` absorbed F1.12–F1.17 (menu, lines, submit, bill, pay, invoice) and crossed 1000 lines
+- Money totals, qty steppers, and hub error text were copy-pasted instead of shared
+- Bill / pay / invoice lived only under counter; F3 dine-in needs the same UI
+- `orders-api.ts` mixed DTO types with checkout helpers
+- `test/mocks/handlers.ts` grew past 2000 lines; ESM `let` counters cannot be mutated through re-exports, so domain files need bump helpers on a shared store
+
+**Rules for F2**
+
+| Rule | Target |
+|------|--------|
+| Screen files compose only | Hook for state/handlers, cards for UI |
+| Extract when a file hits ~300 lines | Hard cap ~500 |
+| New hub domain → new MSW file | Compose in `handlers.ts`; mutate store seqs via `bumpXSeq()` |
+| Shared chrome | `MoneyTotals`, `QuantityField`, `hubErrorMessage` — do not duplicate |
+| Checkout | Keep `features/checkout` for F3.7; do not fork bill/pay/invoice |
+| API modules | Types vs write/checkout helpers when a client file approaches 300 lines |
+
+**F2.1 shape:** `KitchenQueueScreen` (compose) + `use-kitchen-queue.ts` + ticket/station cards. Add `kds-handlers.ts` when the first queue mock lands, not after F2.4.

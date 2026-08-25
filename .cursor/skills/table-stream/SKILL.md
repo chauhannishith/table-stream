@@ -57,6 +57,12 @@ Do not use YAML merge tags (`!override`) — split prod/dev port files instead.
 - Prefer smallest diff; one logical change per commit
 - Commit tags: `feat(back):`, `feat(front):`, `feat(db):`, `feat(middleware):`, `chore(infra):`
 
+### Hub web file size (tablet-pos)
+
+Extract when a file hits ~300 lines; hard cap ~500. Screens compose only — hook for state, cards for UI. Checkout (bill/pay/invoice) lives in `features/checkout`, not only counter. MSW: one handler file per hub domain, compose in `handlers.ts`; bump store counters via helpers (`bumpOrderSeq`), do not re-export `let` seqs. See `docs/HUB-WEB-ROADMAP.md` §13.
+
+Do not grow one KDS/waiter screen across a full phase the way F1 grew `CounterOrderScreen`.
+
 ### JSDoc (incremental)
 
 When you edit a file for feature work, document **every exported function** in that file in a **separate commit** (same PR):

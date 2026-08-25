@@ -21,6 +21,14 @@ export class HubApiError extends Error {
   }
 }
 
+/** Message from a hub/API error, or a fallback for unknown throws. */
+export function hubErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof HubApiError || err instanceof Error) {
+    return err.message
+  }
+  return fallback
+}
+
 export type ApiRequestOptions = {
   body?: unknown
   /** Override stored device token; pass null to omit header. */
